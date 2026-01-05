@@ -1,5 +1,5 @@
 
-# Loans Tracker
+# Loans Tracker CommandLine Zm
 
 A modern Flutter application for managing personal loans with a clean, intuitive interface.
 
@@ -42,35 +42,8 @@ A modern Flutter application for managing personal loans with a clean, intuitive
    git clone https://github.com/yourusername/loans-tracker.git
    cd loans-tracker
    ```
-
-2. **Install dependencies**
-   ```bash
-   flutter pub get
-   ```
-
-3. **Run the app**
-   ```bash
-   flutter run
-   ```
-
-### Building for Release
-
-**Android APK:**
-```bash
-flutter build apk --release
-```
-
-**iOS:**
-```bash
-flutter build ios --release
-```
 ### Supported Platforms
 - ✅ Android
--  iOS
--  macOS
--  Web
--  Windows
--  Linux
 
 ## Dependencies
 
@@ -106,17 +79,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Naonga Gondwe**  
 *CommandLine*
-
-## Changelog
-
-### v1.0.0 (Initial Release)
-- ✅ Complete loan management system
-- ✅ CSV export functionality
-- ✅ Modern Material 3 UI
-- ✅ Dark/Light theme support
-- ✅ Custom app icon
-- ✅ Multi-platform support
-- ✅ Clean, animation-free interface
-
----
-
