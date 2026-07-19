@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -58,16 +59,23 @@ class NotificationService {
       // Optionally handle notification tapped action here
     });
 
-    // Request platform permissions where required (Android 13+, iOS)
-    try {
-      // Android 13+ permission is handled by the system/plugin if supported.
-      // Some plugin versions expose requestPermission on Android; to keep compatibility
-      // across versions we avoid calling an Android request API directly here.
+    await requestPermissions();
+  }
 
+  Future<void> requestPermissions() async {
+    if (kIsWeb) return;
+    try {
       final iosImpl = _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
       await iosImpl?.requestPermissions(alert: true, badge: true, sound: true);
-    } catch (_) {}
 
+      final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      await androidImpl?.requestNotificationsPermission();
+
+      // Request exact alarm permission on Android 12+
+      if (await Permission.scheduleExactAlarm.isDenied) {
+        await Permission.scheduleExactAlarm.request();
+      }
+    } catch (_) {}
   }
 
   int _idFromString(String s, {int offset = 0}) {
@@ -115,7 +123,7 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       playSound: true,
-      icon: '@drawable/ic_notification',
+      icon: 'ic_notification',
     );
 
     final iosDetails = DarwinNotificationDetails();
@@ -143,6 +151,7 @@ class NotificationService {
         );
       }
     }
+
     // Schedule "due date" notification if in the future
     if (dueLocal.isAfter(localNow)) {
       await _plugin.zonedSchedule(
@@ -162,13 +171,35 @@ class NotificationService {
         details,
       );
     }
+
+    // Schedule daily overdue reminders for the next 7 days (offsets 2 to 8)
+    for (int day = 1; day <= 7; day++) {
+      final overdueLocal = dueLocal.add(Duration(days: day));
+      final overdueUtc = tz.TZDateTime.from(overdueLocal.toUtc(), tz.UTC);
+
+      if (overdueLocal.isAfter(localNow)) {
+        final titleOverdue = 'Loan Overdue (${day}d late)';
+        final bodyOverdue = '${loan.name} — ${currency.format(dueAmount)} is $day days overdue (due ${formatter.format(loan.dueDate)}).';
+
+        await _plugin.zonedSchedule(
+          _idFromString(loan.id, offset: 1 + day),
+          titleOverdue,
+          bodyOverdue,
+          overdueUtc,
+          details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        );
+      }
+    }
   }
 
   Future<void> cancelLoanNotifications(String loanId) async {
     if (kIsWeb) return;
     try {
-      await _plugin.cancel(_idFromString(loanId));
-      await _plugin.cancel(_idFromString(loanId, offset: 1));
+      // Cancel base (0), one-day-before (1), and daily overdue days 1-7 (2 to 8)
+      for (int i = 0; i <= 8; i++) {
+        await _plugin.cancel(_idFromString(loanId, offset: i));
+      }
     } catch (_) {}
   }
 
@@ -217,7 +248,7 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       playSound: true,
-      icon: '@drawable/ic_notification',
+      icon: 'ic_notification',
     );
 
     final iosDetails = DarwinNotificationDetails();

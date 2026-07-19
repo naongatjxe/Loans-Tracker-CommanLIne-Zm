@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'utils/loan_provider.dart';
 import 'utils/notification_service.dart';
 import 'pages/contract_page.dart';
+import 'pages/welcome_onboarding_page.dart';
 import 'main_tabs.dart';
 import 'theme/theme_controller.dart';
 
@@ -18,6 +20,13 @@ void main() async {
     // ignore: avoid_print
     print('Notification init failed: $e');
   }
+
+  // Check onboarding state at startup
+  bool isOnboarded = false;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    isOnboarded = prefs.getBool('has_completed_onboarding') ?? false;
+  } catch (_) {}
 
   // Only set preferred orientations on mobile platforms
   if (!kIsWeb) {
@@ -33,11 +42,12 @@ void main() async {
     );
   }
 
-  runApp(const MyApp());
+  runApp(MyApp(isOnboarded: isOnboarded));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isOnboarded;
+  const MyApp({super.key, required this.isOnboarded});
 
   // This widget is the root of your application.
   @override
@@ -122,7 +132,7 @@ class MyApp extends StatelessWidget {
                 ),
               ),
             ),
-            home: const MainTabs(),
+            home: isOnboarded ? const MainTabs() : const WelcomeOnboardingPage(),
             routes: {'/contract': (context) => const ContractPage()},
           );
         },

@@ -165,4 +165,23 @@ class LoanProvider with ChangeNotifier {
       } catch (_) {}
     }
   }
+
+  /// Import dataset from a backup file, replacing current loans and contracts.
+  Future<void> importData(List<Person> importedPeople, List<Contract> importedContracts) async {
+    // 1. Cancel all existing notifications
+    await cancelAllNotifications();
+
+    // 2. Overwrite local variables
+    _people = importedPeople;
+    _contracts = importedContracts;
+
+    // 3. Save to SharedPreferences
+    await _saveData();
+
+    // 4. Reschedule notifications for the newly imported data
+    await rescheduleAllNotifications();
+
+    // 5. Notify UI of changes
+    notifyListeners();
+  }
 }

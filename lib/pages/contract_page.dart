@@ -11,6 +11,7 @@ import '../utils/storage_helper.dart';
 import '../models/contract.dart';
 import '../utils/loan_provider.dart';
 import '../utils/pdf_generator.dart';
+import 'contract_manual_page.dart';
 
 class ContractPage extends StatefulWidget {
   const ContractPage({super.key});
@@ -22,6 +23,8 @@ class ContractPage extends StatefulWidget {
 class ContractPageState extends State<ContractPage> {
   final _formKey = GlobalKey<FormState>();
   final _companyNameController = TextEditingController();
+  final _companyPhoneController = TextEditingController();
+  final _companyAddressController = TextEditingController();
   final _termsController = TextEditingController();
   Person? _person;
   bool _isGenerating = false;
@@ -30,6 +33,8 @@ class ContractPageState extends State<ContractPage> {
   void initState() {
     super.initState();
     _companyNameController.text = 'Your Company Name';
+    _companyPhoneController.text = '';
+    _companyAddressController.text = '';
     // Terms are intentionally minimal; contract text is generated for clarity in the PDF
     _termsController.text =
         'This Agreement constitutes the entire understanding between the parties.';
@@ -50,6 +55,8 @@ class ContractPageState extends State<ContractPage> {
   @override
   void dispose() {
     _companyNameController.dispose();
+    _companyPhoneController.dispose();
+    _companyAddressController.dispose();
     _termsController.dispose();
     super.dispose();
   }
@@ -64,9 +71,11 @@ class ContractPageState extends State<ContractPage> {
         final contract = Contract(
           id: const Uuid().v4(),
           person: _person!,
-          companyName: _companyNameController.text,
+          companyName: _companyNameController.text.trim(),
+          lenderPhone: _companyPhoneController.text.trim(),
+          lenderAddress: _companyAddressController.text.trim(),
           creationDate: DateTime.now(),
-          terms: _termsController.text,
+          terms: _termsController.text.trim(),
         );
 
         // Save the contract
@@ -334,7 +343,12 @@ class ContractPageState extends State<ContractPage> {
               ),
               const SizedBox(height: 12),
               ElevatedButton.icon(
-                onPressed: () => _showContractOnlyDialog(),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ContractManualPage(),
+                  ),
+                ),
                 icon: const Icon(Icons.add),
                 label: const Text('Create Contract (manual)'),
               ),
@@ -517,7 +531,7 @@ class ContractPageState extends State<ContractPage> {
                             _buildInfoRow('Workplace:', _person!.workplace),
                             const Divider(height: 24),
                             _buildInfoRow(
-                              'Loan Amount:',
+                              'Principal Amount:',
                               currencyFormat.format(_person!.amount),
                               valueStyle: const TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -542,8 +556,7 @@ class ContractPageState extends State<ContractPage> {
                             ),
                             const Divider(height: 24),
                             _buildInfoRow(
-                              'Total Amount Due:',
-                              // Use the amount due for the agreed term (principal + fixed per-term interest)
+                              'Total Amount Payable:',
                               currencyFormat.format(
                                 _person!.calculateAmountDue(_person!.dueDate),
                               ),
@@ -584,7 +597,7 @@ class ContractPageState extends State<ContractPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
-                        fillColor: Color.fromRGBO(66, 66, 66, 0.3),
+                        fillColor: const Color.fromRGBO(66, 66, 66, 0.3),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -592,6 +605,36 @@ class ContractPageState extends State<ContractPage> {
                         }
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _companyPhoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: 'Lender Phone',
+                        prefixIcon: const Icon(Icons.phone),
+                        hintText: 'Enter lender phone number (optional)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: const Color.fromRGBO(66, 66, 66, 0.3),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _companyAddressController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: 'Lender Address',
+                        prefixIcon: const Icon(Icons.location_on),
+                        hintText: 'Enter lender address (optional)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: const Color.fromRGBO(66, 66, 66, 0.3),
+                      ),
                     ),
                     const SizedBox(height: 16),
 
@@ -646,90 +689,6 @@ class ContractPageState extends State<ContractPage> {
     );
   }
 
-  void _showContractOnlyDialog() {
-    final nameController = TextEditingController();
-    final nrcController = TextEditingController();
-    final phoneController = TextEditingController();
-    final workplaceController = TextEditingController();
-    DateTime loanDate = DateTime.now();
-    DateTime dueDate = DateTime.now().add(const Duration(days: 7));
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create Contract - Borrower'),
-        content: SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Full name'),
-              ),
-              TextField(
-                controller: nrcController,
-                decoration: const InputDecoration(labelText: 'NRC'),
-              ),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(labelText: 'Phone'),
-              ),
-              TextField(
-                controller: workplaceController,
-                decoration: const InputDecoration(
-                  labelText: 'Workplace / In School',
-                ),
-              ),
-              TextField(
-                controller: _companyNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Company / Lender Name',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _termsController,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Terms and Conditions (optional) ',
-                  hintText: 'Custom terms to include in the generated PDF',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final person = Person(
-                id: const Uuid().v4(),
-                name: nameController.text,
-                nrc: nrcController.text,
-                phone: phoneController.text,
-                workplace: workplaceController.text,
-                amount: 0.0,
-                interestRate: 0.0,
-                loanDate: loanDate,
-                dueDate: dueDate,
-              );
-              Navigator.pop(context);
-              // Pre-fill company name for contract generation
-              _companyNameController.text =
-                  _companyNameController.text.isNotEmpty
-                  ? _companyNameController.text
-                  : 'Your Company Name';
-              // Open contract page for this temp person
-              Navigator.pushNamed(context, '/contract', arguments: person);
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildInfoRow(String label, String value, {TextStyle? valueStyle}) {
     return Padding(

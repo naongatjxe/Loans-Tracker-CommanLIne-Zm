@@ -69,6 +69,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final currency = NumberFormat('#,##0.00');
     double totalLoaned = 0, totalInterest = 0, totalOutstanding = 0, interestEarned = 0;
     int overdue = 0;
+    double overdueAmount = 0;
 
     for (final p in people) {
       totalLoaned += p.amount;
@@ -78,7 +79,10 @@ class _DashboardPageState extends State<DashboardPage> {
       if (!p.isPaid) {
         totalInterest += termInterest;
         totalOutstanding += termTotal;
-        if (p.dueDate.isBefore(DateTime.now())) overdue++;
+        if (p.dueDate.isBefore(DateTime.now())) {
+          overdue++;
+          overdueAmount += termTotal;
+        }
       } else {
         // Sum interest from loans that have been marked paid
         interestEarned += termInterest;
@@ -88,66 +92,85 @@ class _DashboardPageState extends State<DashboardPage> {
     return Column(
       children: [
         // First row
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'Total Loaned',
-                'K${currency.format(totalLoaned)}',
-                Icons.account_balance_wallet_rounded,
-                Colors.blue,
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Total Loaned',
+                  'K${currency.format(totalLoaned)}',
+                  Icons.account_balance_wallet_rounded,
+                  Colors.blue,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildStatCard(
-                'Outstanding',
-                'K${currency.format(totalOutstanding)}',
-                Icons.payment_rounded,
-                Colors.orange,
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Outstanding',
+                  'K${currency.format(totalOutstanding)}',
+                  Icons.payment_rounded,
+                  Colors.orange,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 16),
 
         // Second row
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'Total Interest',
-                'K${currency.format(totalInterest)}',
-                Icons.trending_up_rounded,
-                Colors.green,
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Total Interest',
+                  'K${currency.format(totalInterest)}',
+                  Icons.trending_up_rounded,
+                  Colors.green,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildStatCard(
-                'Overdue Loans',
-                overdue.toString(),
-                Icons.warning_rounded,
-                overdue > 0 ? Colors.red : Colors.grey,
-                highlight: overdue > 0,
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Interest Earned',
+                  'K${currency.format(interestEarned)}',
+                  Icons.monetization_on,
+                  Colors.teal,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 16),
 
-        // Interest earned on paid loans
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'Interest Earned',
-                'K${currency.format(interestEarned)}',
-                Icons.monetization_on,
-                Colors.teal,
+        // Third row
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Overdue Loans',
+                  overdue.toString(),
+                  Icons.warning_rounded,
+                  overdue > 0 ? Colors.red : Colors.grey,
+                  highlight: overdue > 0,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Overdue Amount',
+                  'K${currency.format(overdueAmount)}',
+                  Icons.report_problem_rounded,
+                  overdue > 0 ? Colors.red : Colors.grey,
+                  highlight: overdue > 0,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -167,49 +190,55 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildAnalyticsCard(
-                'Total Loans',
-                totalLoans.toString(),
-                Icons.receipt_long_rounded,
-                Colors.purple,
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Total Loans',
+                  totalLoans.toString(),
+                  Icons.receipt_long_rounded,
+                  Colors.purple,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildAnalyticsCard(
-                'Active Loans',
-                activeLoans.toString(),
-                Icons.hourglass_empty_rounded,
-                Colors.blue,
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Active Loans',
+                  activeLoans.toString(),
+                  Icons.hourglass_empty_rounded,
+                  Colors.blue,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 16),
 
-        Row(
-          children: [
-            Expanded(
-              child: _buildAnalyticsCard(
-                'Paid Loans',
-                paidLoans.toString(),
-                Icons.check_circle_rounded,
-                Colors.green,
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Paid Loans',
+                  paidLoans.toString(),
+                  Icons.check_circle_rounded,
+                  Colors.green,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildAnalyticsCard(
-                'Avg. Amount',
-                'K${currency.format(avgLoanAmount)}',
-                Icons.calculate_rounded,
-                Colors.teal,
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Avg. Amount',
+                  'K${currency.format(avgLoanAmount)}',
+                  Icons.calculate_rounded,
+                  Colors.teal,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -377,66 +406,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildAnalyticsCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.7),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildRecentActivityItem(Person person) {
     final currency = NumberFormat('#,##0.00');

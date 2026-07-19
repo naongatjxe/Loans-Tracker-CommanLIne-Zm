@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../models/person.dart';
 import '../utils/loan_provider.dart';
 import '../theme/theme_controller.dart';
+import '../utils/formatters.dart';
 
 class LoanEditPage extends StatefulWidget {
   final Person? person;
@@ -163,7 +164,19 @@ class _LoanEditPageState extends State<LoanEditPage> {
                 controller: _nrcCtrl,
                 label: 'NRC Number',
                 icon: Icons.badge_rounded,
-                validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  NrcInputFormatter(),
+                ],
+                validator: (v) {
+                  final text = v?.trim() ?? '';
+                  if (text.isEmpty) return 'Required';
+                  final regExp = RegExp(r'^\d{6}/\d{2}/\d$');
+                  if (!regExp.hasMatch(text)) {
+                    return 'Invalid NRC format (000000/00/0)';
+                  }
+                  return null;
+                },
                 delay: 150,
               ),
               const SizedBox(height: 16),

@@ -42,7 +42,7 @@ class PdfGenerator {
     final highlightStyle = pw.TextStyle(
       fontSize: 12,
       fontWeight: pw.FontWeight.bold,
-      color: PdfColors.blue800,
+      color: PdfColors.blueGrey900,
     );
 
     pdf.addPage(
@@ -120,28 +120,60 @@ class PdfGenerator {
                   children: [
                     pw.Text('PARTIES', style: sectionTitleStyle),
                     pw.SizedBox(height: 10),
-
-                    // Lender
-                    pw.Text('LENDER:', style: labelStyle),
-                    pw.SizedBox(height: 4),
-                    pw.Text(contract.companyName, style: valueStyle),
-                    pw.SizedBox(height: 10),
-
-                    // Borrower
-                    pw.Text('BORROWER:', style: labelStyle),
-                    pw.SizedBox(height: 4),
-                    pw.Text(contract.person.name, style: valueStyle),
-                    pw.Text(
-                      'NRC: ${contract.person.nrc}',
-                      style: pw.TextStyle(fontSize: 10),
-                    ),
-                    pw.Text(
-                      'Phone: ${contract.person.phone}',
-                      style: pw.TextStyle(fontSize: 10),
-                    ),
-                    pw.Text(
-                      'Workplace: ${contract.person.workplace}',
-                      style: pw.TextStyle(fontSize: 10),
+                    pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        // Lender
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text('LENDER:', style: labelStyle),
+                              pw.SizedBox(height: 4),
+                              pw.Text(contract.companyName, style: valueStyle),
+                              if (contract.lenderPhone.isNotEmpty) ...[
+                                pw.SizedBox(height: 2),
+                                pw.Text(
+                                  'Phone: ${contract.lenderPhone}',
+                                  style: pw.TextStyle(fontSize: 10),
+                                ),
+                              ],
+                              if (contract.lenderAddress.isNotEmpty) ...[
+                                pw.SizedBox(height: 2),
+                                pw.Text(
+                                  'Address: ${contract.lenderAddress}',
+                                  style: pw.TextStyle(fontSize: 10),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        pw.SizedBox(width: 20),
+                        // Borrower
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text('BORROWER:', style: labelStyle),
+                              pw.SizedBox(height: 4),
+                              pw.Text(contract.person.name, style: valueStyle),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                'NRC: ${contract.person.nrc}',
+                                style: pw.TextStyle(fontSize: 10),
+                              ),
+                              pw.Text(
+                                'Phone: ${contract.person.phone}',
+                                style: pw.TextStyle(fontSize: 10),
+                              ),
+                              pw.Text(
+                                'Workplace: ${contract.person.workplace}',
+                                style: pw.TextStyle(fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -163,7 +195,6 @@ class PdfGenerator {
                   children: [
                     pw.Text('LOAN DETAILS', style: sectionTitleStyle),
                     pw.SizedBox(height: 10),
-
                     _buildDetailRow(
                       'Principal Amount:',
                       currencyFormat.format(contract.person.amount),
@@ -180,13 +211,11 @@ class PdfGenerator {
                       'Due Date:',
                       dateFormat.format(contract.person.dueDate),
                     ),
-
                     pw.SizedBox(height: 10),
                     pw.Divider(color: PdfColors.grey300),
                     pw.SizedBox(height: 10),
-
                     _buildDetailRow(
-                      'Total Amount Due:',
+                      'Total Amount Payable:',
                       currencyFormat.format(termTotal),
                       labelStyle: highlightStyle,
                       valueStyle: highlightStyle,

@@ -1,14 +1,14 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/theme_controller.dart';
 import '../utils/loan_provider.dart';
+import '../utils/csv_exporter.dart';
+import '../utils/backup_service.dart';
 import '../utils/notification_service.dart';
-import '../utils/storage_helper.dart';
+
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -18,26 +18,111 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  String _activeExportPath = 'Downloads/Loans Tracker';
   bool _notificationsEnabled = true;
-
-  int _notificationsHour = 9;
-  int _notificationsMinute = 0;
-  bool _oneDayBefore = true;
+  TimeOfDay _notificationTime = const TimeOfDay(hour: 9, minute: 0);
+  bool _notifyOneDayBefore = true;
 
   @override
   void initState() {
     super.initState();
-    // Read current notification preference
+    _loadActiveExportPath();
+    _loadNotificationSettings();
+  }
+
+  void _loadNotificationSettings() {
+    final notifService = NotificationService();
+    setState(() {
+      _notificationsEnabled = notifService.enabled;
+      _notificationTime = TimeOfDay(hour: notifService.hour, minute: notifService.minute);
+      _notifyOneDayBefore = notifService.oneDayBefore;
+    });
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    await NotificationService().setEnabled(value);
+    setState(() {
+      _notificationsEnabled = value;
+    });
+  }
+
+  Future<void> _selectNotificationTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _notificationTime,
+    );
+    if (picked != null) {
+      await NotificationService().setNotificationTime(picked.hour, picked.minute);
+      setState(() {
+        _notificationTime = picked;
+      });
+      // Reschedule all active contracts
+      if (mounted) {
+        final provider = Provider.of<LoanProvider>(context, listen: false);
+        for (final loan in provider.people) {
+          if (!loan.isPaid) {
+            await NotificationService().scheduleLoanNotifications(loan);
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> _toggleOneDayBefore(bool value) async {
+    await NotificationService().setOneDayBefore(value);
+    setState(() {
+      _notifyOneDayBefore = value;
+    });
+    // Reschedule all active contracts
+    if (mounted) {
+      final provider = Provider.of<LoanProvider>(context, listen: false);
+      for (final loan in provider.people) {
+        if (!loan.isPaid) {
+          await NotificationService().scheduleLoanNotifications(loan);
+        }
+      }
+    }
+  }
+
+  Future<void> _loadActiveExportPath() async {
     try {
-      _notificationsEnabled = NotificationService().enabled;
-      _notificationsHour = NotificationService().hour;
-      _notificationsMinute = NotificationService().minute;
-      _oneDayBefore = NotificationService().oneDayBefore;
-    } catch (_) {
-      _notificationsEnabled = true;
-      _notificationsHour = 9;
-      _notificationsMinute = 0;
-      _oneDayBefore = true;
+      final prefs = await SharedPreferences.getInstance();
+      final customPath = prefs.getString('custom_export_path');
+      if (customPath != null && customPath.isNotEmpty) {
+        setState(() {
+          if (customPath.length > 35) {
+            _activeExportPath = '...${customPath.substring(customPath.length - 32)}';
+          } else {
+            _activeExportPath = customPath;
+          }
+        });
+      } else {
+        setState(() {
+          _activeExportPath = 'Downloads/Loans Tracker';
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _changeSaveDirectory() async {
+    try {
+      final path = await FilePicker.platform.getDirectoryPath();
+      if (path != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('custom_export_path', path);
+        _loadActiveExportPath();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Save directory updated to: $path')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update directory: $e')),
+        );
+      }
     }
   }
 
@@ -49,136 +134,50 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final themeCtrl = Provider.of<ThemeController>(context);
-    final isDark = themeCtrl.mode == ThemeMode.dark;
+    final isSystemDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = themeCtrl.mode == ThemeMode.dark ||
+        (themeCtrl.mode == ThemeMode.system && isSystemDark);
     final accent = themeCtrl.accent;
 
     return Scaffold(
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const SizedBox(height: 8),
-
-          // Notifications toggle (top)
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SwitchListTile(
-                    value: _notificationsEnabled,
-                    onChanged: (val) async {
-                      final provider = Provider.of<LoanProvider>(context, listen: false);
-                      setState(() => _notificationsEnabled = val);
-                      await NotificationService().setEnabled(val);
-                      if (val) {
-                        await provider.rescheduleAllNotifications();
-                      } else {
-                        await provider.cancelAllNotifications();
-                      }
-                    },
-                    title: const Text('Notifications'),
-                    subtitle: const Text('Reminders for upcoming and due loans'),
-                    secondary: const Icon(Icons.notifications_active_outlined, color: Color(0xFF64B5F6)),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Tooltip(
-                          message: 'Tap to send a test notification. Ensure system notifications are enabled.',
-                          child: ElevatedButton.icon(
-                            onPressed: _notificationsEnabled
-                                ? () async {
-                                    final messenger = ScaffoldMessenger.of(context);
-                                    try {
-                                      await NotificationService().showTestNotification();
-                                      messenger.showSnackBar(const SnackBar(content: Text('Test notification sent — check your device notifications')));
-                                    } catch (e) {
-                                      messenger.showSnackBar(SnackBar(content: Text('Failed to send test notification: $e'), backgroundColor: Colors.red));
-                                    }
-                                  }
-                                : null,
-                            icon: const Icon(Icons.send),
-                            label: const Text('Send test notification'),
-                            style: ElevatedButton.styleFrom(elevation: 0),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Notification time picker and one-day-before toggle
-                  ListTile(
-                    leading: const Icon(Icons.schedule, color: Color(0xFF64B5F6)),
-                    title: const Text('Notification time'),
-                    subtitle: Text('${_notificationsHour.toString().padLeft(2, '0')}:${_notificationsMinute.toString().padLeft(2, '0')}'),
-                    onTap: () async {
-                      final provider = Provider.of<LoanProvider>(context, listen: false);
-                      final initial = TimeOfDay(hour: _notificationsHour, minute: _notificationsMinute);
-                      final picked = await showTimePicker(context: context, initialTime: initial);
-                      if (picked != null) {
-                        setState(() {
-                          _notificationsHour = picked.hour;
-                          _notificationsMinute = picked.minute;
-                        });
-                        await NotificationService().setNotificationTime(picked.hour, picked.minute);
-                        await provider.rescheduleAllNotifications();
-                      }
-                    },
-                  ),
-                  SwitchListTile(
-                    value: _oneDayBefore,
-                    onChanged: (val) async {
-                      final provider = Provider.of<LoanProvider>(context, listen: false);
-                      setState(() => _oneDayBefore = val);
-                      await NotificationService().setOneDayBefore(val);
-                      if (val) {
-                        await provider.rescheduleAllNotifications();
-                      } else {
-                        // cancel all notifications for loans (includes the one-day-before entries)
-                        await provider.cancelAllNotifications();
-                      }
-                    },
-                    title: const Text('Notify one day before'),
-                    subtitle: const Text('Send a reminder the day before the loan is due'),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'The app will request notification permissions on first use. If notifications do not appear, check your system settings to grant notification permission to this app.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 8),
-                  ListTile(
-                    leading: const Icon(Icons.folder_open, color: Color(0xFF64B5F6)),
-                    title: const Text('Export folder (choose)'),
-                    subtitle: const Text('Pick a folder to be used as the default export destination.'),
-                    trailing: ElevatedButton(
-                      onPressed: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        final chosen = await StorageHelper.promptForDirectory();
-                        if (chosen != null && chosen.isNotEmpty) {
-                          await StorageHelper.setPreferredExportDirectory(chosen);
-                          if (mounted) messenger.showSnackBar(SnackBar(content: Text('Export folder saved: $chosen')));
-                        } else {
-                          if (mounted) messenger.showSnackBar(const SnackBar(content: Text('No folder selected')));
-                        }
-                      },
-                      child: const Text('Pick'),
-                    ),
-                  ),
+      appBar: AppBar(
+        title: Text(
+          'Settings',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+            letterSpacing: 0.3,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        toolbarHeight: 48,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                  Colors.transparent,
                 ],
               ),
             ),
           ),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
 
-          const SizedBox(height: 8),
 
-          // Appearance Card
+          // Theme Settings Card
           Card(
             elevation: 2,
             shape: RoundedRectangleBorder(
@@ -190,51 +189,22 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Appearance',
+                    'Theme Settings',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-
-                  // Theme Toggle
-                  ListTile(
-                    leading: const Icon(
-                      Icons.palette_outlined,
-                      color: Color(0xFF64B5F6),
-                    ),
-                    title: const Text('Theme'),
-                    subtitle: Container(
-                      margin: const EdgeInsets.only(top: 8),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _buildThemeOption(
-                              icon: Icons.light_mode_rounded,
-                              label: 'Light',
-                              isSelected: !isDark,
-                              onTap: () {
-                                themeCtrl.setMode(ThemeMode.light);
-                              },
-                            ),
-                          ),
-                          Expanded(
-                            child: _buildThemeOption(
-                              icon: Icons.dark_mode_rounded,
-                              label: 'Dark',
-                              isSelected: isDark,
-                              onTap: () {
-                                themeCtrl.setMode(ThemeMode.dark);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
+                  SwitchListTile(
+                    activeThumbColor: accent,
+                    activeTrackColor: accent.withValues(alpha: 0.5),
+                    title: const Text('Always Dark Mode'),
+                    subtitle: const Text('Force dark theme, otherwise follow system settings'),
+                    value: themeCtrl.mode == ThemeMode.dark,
+                    onChanged: (bool value) {
+                      themeCtrl.setMode(value ? ThemeMode.dark : ThemeMode.system);
+                    },
+                    secondary: Icon(
+                      Icons.dark_mode_rounded,
+                      color: accent,
                     ),
                   ),
                 ],
@@ -290,6 +260,84 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
+                    'Notifications',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    activeThumbColor: accent,
+                    activeTrackColor: accent.withValues(alpha: 0.5),
+                    title: const Text('Enable Reminders'),
+                    subtitle: const Text('Send notifications for upcoming and overdue payments'),
+                    value: _notificationsEnabled,
+                    onChanged: _toggleNotifications,
+                    secondary: Icon(
+                      Icons.notifications_active_rounded,
+                      color: accent,
+                    ),
+                  ),
+                  if (_notificationsEnabled) ...[
+                    ListTile(
+                      leading: Icon(
+                        Icons.access_time_filled_rounded,
+                        color: accent,
+                      ),
+                      title: const Text('Reminder Time'),
+                      subtitle: Text(
+                        'Scheduled for: ${_notificationTime.format(context)}',
+                      ),
+                      onTap: _selectNotificationTime,
+                    ),
+                    SwitchListTile(
+                      activeThumbColor: accent,
+                      activeTrackColor: accent.withValues(alpha: 0.5),
+                      title: const Text('1 Day Before Due'),
+                      subtitle: const Text('Notify one day prior to payment deadlines'),
+                      value: _notifyOneDayBefore,
+                      onChanged: _toggleOneDayBefore,
+                      secondary: Icon(
+                        Icons.today_rounded,
+                        color: accent,
+                      ),
+                    ),
+                  ],
+                  ListTile(
+                    leading: Icon(
+                      Icons.notification_important_rounded,
+                      color: accent,
+                    ),
+                    title: const Text('Send Test Notification'),
+                    subtitle: const Text('Triggers an immediate test reminder to verify notifications work'),
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      try {
+                        await NotificationService().showTestNotification(
+                          title: 'Test Notification',
+                          body: 'This is a test notification from Loans Tracker Pro!',
+                        );
+                      } catch (e) {
+                        messenger.showSnackBar(
+                          SnackBar(content: Text('Failed to trigger notification: $e')),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
                     'Data',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -302,6 +350,42 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: const Text('Export CSV'),
                     subtitle: const Text('Export all loan data to CSV file'),
                     onTap: () => _exportCsv(context),
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.calendar_month_rounded,
+                      color: Color(0xFF64B5F6),
+                    ),
+                    title: const Text('Export Monthly CSV'),
+                    subtitle: const Text('Export monthly report summaries to CSV'),
+                    onTap: () => _exportMonthlyCsv(context),
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.backup_rounded,
+                      color: Color(0xFF64B5F6),
+                    ),
+                    title: const Text('Backup Data'),
+                    subtitle: const Text('Backup settings and loans to a JSON file'),
+                    onTap: () => BackupService.backupData(context),
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.restore_rounded,
+                      color: Color(0xFF64B5F6),
+                    ),
+                    title: const Text('Restore Data'),
+                    subtitle: const Text('Restore settings and loans from a JSON file'),
+                    onTap: () => BackupService.restoreData(context),
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.folder_open_rounded,
+                      color: Color(0xFF64B5F6),
+                    ),
+                    title: const Text('Change Save Directory'),
+                    subtitle: Text('Current: $_activeExportPath'),
+                    onTap: () => _changeSaveDirectory(),
                   ),
                 ],
               ),
@@ -347,47 +431,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildThemeOption({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? Provider.of<ThemeController>(context, listen: false).accent
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? Colors.white
-                  : Theme.of(context).colorScheme.onSurface,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : Theme.of(context).colorScheme.onSurface,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildColorOption(
     Color color,
@@ -428,40 +472,81 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
 
-    final header =
-        'id,name,nrc,phone,workplace,amount,interestRate,loanDate,dueDate,isPaid\n';
-
-    String safeCsv(String? s) {
-      return '"${(s ?? '').replaceAll('"', '""')}"';
-    }
-
-    final rows = people
-        .map((p) {
-          return '${safeCsv(p.id)},${safeCsv(p.name)},${safeCsv(p.nrc)},${safeCsv(p.phone)},${safeCsv(p.workplace)},${p.amount},${p.interestRate},"${p.loanDate.toIso8601String()}","${p.dueDate.toIso8601String()}",${p.isPaid}';
-        })
-        .join('\n');
-
-    final csv = header + rows;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      // Use application support directory so on Android files are saved
-      // under context.getFilesDir() (not app_flutter). This matches the
-      // FileProvider <files-path> entry and avoids URI root errors.
-      final dir = await getApplicationSupportDirectory();
-      final fname =
-          'loans_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
-      final file = File('${dir.path}/$fname');
-      await file.writeAsString(csv);
-      messenger.showSnackBar(
-        SnackBar(content: Text('CSV exported: ${file.path}')),
-      );
-      // Attempt to invoke platform share via MethodChannel (Android implementation)
+      // 1. Generate the CSV using our robust package-backed exporter
+      final filePath = await CsvExporter.exportLoansToCsv(people);
+      final fileName = filePath.split('/').last;
+
+      // Shorten the output path display for SnackBar
+      String displayPath = 'Downloads/Loans Tracker';
       try {
-        const channel = MethodChannel('loan_tracker/share');
-        await channel.invokeMethod('shareFile', {'path': file.path});
-      } catch (_) {
-        // ignore platform errors; user can still access the file
-      }
+        final prefs = await SharedPreferences.getInstance();
+        final customPath = prefs.getString('custom_export_path');
+        if (customPath != null && customPath.isNotEmpty) {
+          final parts = customPath.split('/');
+          if (parts.length >= 2) {
+            displayPath = '${parts[parts.length - 2]}/${parts.last}';
+          } else {
+            displayPath = customPath;
+          }
+        }
+      } catch (_) {}
+
+      messenger.showSnackBar(
+        SnackBar(content: Text('CSV saved to: $displayPath/$fileName')),
+      );
+
+      // 2. Share the file immediately using the cross-platform share_plus sheet
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        subject: 'Loans Export',
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    }
+  }
+
+  Future<void> _exportMonthlyCsv(BuildContext context) async {
+    final provider = Provider.of<LoanProvider>(context, listen: false);
+    final people = provider.people;
+    if (people.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No reports to export')));
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      // 1. Generate the CSV using our robust package-backed exporter
+      final filePath = await CsvExporter.exportMonthlyReportsToCsv(people);
+      final fileName = filePath.split('/').last;
+
+      // Shorten the output path display for SnackBar
+      String displayPath = 'Downloads/Loans Tracker';
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final customPath = prefs.getString('custom_export_path');
+        if (customPath != null && customPath.isNotEmpty) {
+          final parts = customPath.split('/');
+          if (parts.length >= 2) {
+            displayPath = '${parts[parts.length - 2]}/${parts.last}';
+          } else {
+            displayPath = customPath;
+          }
+        }
+      } catch (_) {}
+
+      messenger.showSnackBar(
+        SnackBar(content: Text('Monthly CSV saved to: $displayPath/$fileName')),
+      );
+
+      // 2. Share the file immediately using the cross-platform share_plus sheet
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        subject: 'Monthly Reports Export',
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }

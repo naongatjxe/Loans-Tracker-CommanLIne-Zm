@@ -3,10 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../models/person.dart';
 import '../utils/loan_provider.dart';
-import '../utils/csv_exporter.dart';
-import '../utils/storage_helper.dart';
 import 'loan_details_page.dart';
 import 'loan_edit_page_new.dart';
+import 'settings_page.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/loan_card_compact.dart';
 
@@ -22,23 +21,37 @@ class HomePageState extends State<HomePage>
   late final TextEditingController _searchCtrl;
   String _searchQuery = '';
   late final TabController _tabController;
+  int _lastTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _searchCtrl = TextEditingController();
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      setState(() {});
-    });
+    _lastTabIndex = _tabController.index;
+    _tabController.animation?.addListener(_handleTabAnimation);
+  }
+
+  void _handleTabAnimation() {
+    final animationValue = _tabController.animation?.value;
+    if (animationValue != null) {
+      final newIndex = animationValue.round();
+      if (newIndex != _lastTabIndex) {
+        _lastTabIndex = newIndex;
+        setState(() {});
+      }
+    }
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _tabController.animation?.removeListener(_handleTabAnimation);
     _tabController.dispose();
     super.dispose();
   }
+
+  int get _currentTabIndex => _lastTabIndex;
 
   Future<void> _addLoan() async {
     final Person? person = await Navigator.push<Person>(
@@ -73,19 +86,36 @@ class HomePageState extends State<HomePage>
               p.phone.contains(_searchQuery);
         }).toList();
 
-        final active = filtered.where((p) => !p.isPaid).toList();
+        final now = DateTime.now();
+        final active = filtered.where((p) => !p.isPaid && p.dueDate.difference(now).inDays >= 0).toList();
+        final overdue = filtered.where((p) => !p.isPaid && p.dueDate.difference(now).inDays < 0).toList();
         final paid = filtered.where((p) => p.isPaid).toList();
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Loans'),
-            centerTitle: false,
+            leading: Icon(
+              Icons.account_balance_wallet_rounded,
+              color: Theme.of(context).colorScheme.primary,
+              size: 24,
+            ),
+            title: const Text(
+              'Loans Tracker Pro',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            centerTitle: true,
             backgroundColor: Theme.of(context).colorScheme.surface,
             actions: [
               IconButton(
-                onPressed: () => _showExportOptions(filtered),
-                icon: const Icon(Icons.file_download_outlined),
-                tooltip: 'Export',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SettingsPage()),
+                  );
+                },
+                icon: const Icon(Icons.settings_rounded),
+                tooltip: 'Settings',
               ),
             ],
           ),
@@ -94,28 +124,36 @@ class HomePageState extends State<HomePage>
             children: [
               // === TOP SEGMENTED NAV (looks like bottom navbar) ===
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Wrap(
-                  spacing: 16,
-                  runSpacing: 12,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _segment(
-                      selected: _tabController.index == 0,
-                      icon: Icons.view_list_rounded,
-                      label: 'All',
-                      onTap: () => _tabController.animateTo(0),
+                    Expanded(
+                      child: _segment(
+                        selected: _currentTabIndex == 0,
+                        icon: Icons.play_circle_rounded,
+                        label: 'Active',
+                        onTap: () => _tabController.index = 0,
+                      ),
                     ),
-                    _segment(
-                      selected: _tabController.index == 1,
-                      icon: Icons.play_circle_rounded,
-                      label: 'Active',
-                      onTap: () => _tabController.animateTo(1),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _segment(
+                        selected: _currentTabIndex == 1,
+                        icon: Icons.warning_amber_rounded,
+                        label: 'Overdue',
+                        onTap: () => _tabController.index = 1,
+                        isOverdueColor: true,
+                      ),
                     ),
-                    _segment(
-                      selected: _tabController.index == 2,
-                      icon: Icons.task_alt_rounded,
-                      label: 'Paid',
-                      onTap: () => _tabController.animateTo(2),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _segment(
+                        selected: _currentTabIndex == 2,
+                        icon: Icons.task_alt_rounded,
+                        label: 'Paid',
+                        onTap: () => _tabController.index = 2,
+                      ),
                     ),
                   ],
                 ),
@@ -175,12 +213,12 @@ class HomePageState extends State<HomePage>
                   controller: _tabController,
                   physics: const BouncingScrollPhysics(),
                   children: [
-                    filtered.isEmpty
-                        ? _buildEmptyState('No loans found')
-                        : _buildLoansList(filtered),
                     active.isEmpty
                         ? _buildEmptyState('No active loans')
                         : _buildLoansList(active),
+                    overdue.isEmpty
+                        ? _buildEmptyState('No overdue loans')
+                        : _buildLoansList(overdue),
                     paid.isEmpty
                         ? _buildEmptyState('No paid loans yet')
                         : _buildLoansList(paid),
@@ -243,6 +281,7 @@ class HomePageState extends State<HomePage>
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    bool isOverdueColor = false,
   }) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -251,10 +290,12 @@ class HomePageState extends State<HomePage>
       listen: false,
     );
 
+    final Color accentColor = isOverdueColor ? Colors.red : themeController.accent;
+
     final bg = selected
-        ? themeController.accent.withValues(alpha: 0.2)
+        ? accentColor.withValues(alpha: 0.2)
         : cs.surfaceContainerHighest.withValues(alpha: 0.14);
-    final fg = selected ? themeController.accent : cs.onSurfaceVariant;
+    final fg = selected ? accentColor : cs.onSurfaceVariant;
 
     return Material(
       color: bg,
@@ -262,14 +303,13 @@ class HomePageState extends State<HomePage>
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(24),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 20, color: fg),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Text(
                 label,
                 style: theme.textTheme.labelLarge?.copyWith(
@@ -327,159 +367,6 @@ class HomePageState extends State<HomePage>
           ),
         ],
       ),
-    );
-  }
-
-  Future<void> _exportToCsv(List<Person> loans, {String? outputDir}) async {
-    try {
-      String? dirToUse = outputDir;
-
-      // If no explicit output directory provided, first check if a preferred
-      // export directory has been saved in settings.
-      if (dirToUse == null) {
-        final pref = await StorageHelper.getPreferredExportDirectory();
-        if (pref != null && pref.isNotEmpty) {
-          dirToUse = pref;
-        } else {
-          // If no preferred directory, ensure we have permission; if not,
-          // prompt the user to pick a folder.
-          final hasPerm = await StorageHelper.ensureStoragePermission(context);
-          if (!hasPerm) {
-            final chosen = await StorageHelper.promptForDirectory();
-            if (chosen != null && chosen.isNotEmpty) dirToUse = chosen;
-          }
-        }
-      }
-
-      final messenger = ScaffoldMessenger.of(context);
-      final path = await CsvExporter.exportLoansToCsv(loans, outputDirPath: dirToUse);
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('CSV saved to $path'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      final messenger = ScaffoldMessenger.of(context);
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Export failed: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-  void _showExportOptions(List<Person> loans) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.file_download_outlined),
-              title: const Text('Export Loans CSV'),
-              onTap: () async {
-                Navigator.pop(context);
-                _exportToCsv(loans);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.folder_open),
-              title: const Text('Export Loans CSV (Choose folder)'),
-              subtitle: const Text('Pick a directory path to save the CSV'),
-              onTap: () async {
-                Navigator.pop(context);
-                final chosen = await _promptForDirectoryPath();
-                if (chosen != null && chosen.isNotEmpty) {
-                  await _exportToCsv(loans, outputDir: chosen);
-                }
-              },
-            ),
-
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-
-
-  Future<String?> _promptForDirectoryPath() async {
-    String? input;
-    return showDialog<String>(
-      context: context,
-      builder: (context) {
-        final controller = TextEditingController();
-        return AlertDialog(
-          title: const Text('Choose folder or enter path'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Pick a folder using the system picker or enter a folder path manually.'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: controller,
-                      decoration: const InputDecoration(hintText: '/storage/emulated/0/Download'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final chosen = await StorageHelper.promptForDirectory();
-                      if (chosen != null && chosen.isNotEmpty) {
-                        controller.text = chosen;
-                      }
-                    },
-                    child: const Text('Pick'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                input = controller.text.trim();
-                if (input != null && input!.isNotEmpty) {
-                  // Ask whether to make this the preferred export directory
-                  final messenger = ScaffoldMessenger.of(context);
-                  final makeDefault = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Save as default?'),
-                      content: const Text('Make this folder the default export destination? You can change it later in Settings.'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
-                        ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
-                      ],
-                    ),
-                  );
-
-                  if (makeDefault == true) {
-                    await StorageHelper.setPreferredExportDirectory(input!);
-                    if (mounted) messenger.showSnackBar(SnackBar(content: Text('Export folder saved: $input')));
-                  }
-                }
-
-                Navigator.pop(context, input);
-              },
-              child: const Text('Save here'),
-            ),
-          ],
-        );
-      },
     );
   }
 }

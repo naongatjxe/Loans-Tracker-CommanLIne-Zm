@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 
 import 'pages/home_page.dart';
 import 'pages/dashboard_page.dart';
+import 'pages/monthly_report_page.dart';
 import 'pages/contract_page.dart';
-import 'pages/settings_page.dart';
+
 import 'theme/theme_controller.dart';
 
 class MainTabs extends StatefulWidget {
@@ -22,11 +23,11 @@ class _MainTabsState extends State<MainTabs> {
   late final List<Widget> _pages = [
     HomePage(key: homeKey),
     const DashboardPage(),
+    const MonthlyReportPage(),
     const ContractPage(),
-    const SettingsPage(),
   ];
 
-  final List<String> _titles = ['Loans', 'Dashboard', 'Contract', 'Settings'];
+  final List<String> _titles = ['Loans', 'Dashboard', 'Monthly', 'Contract'];
 
   @override
   Widget build(BuildContext context) {
@@ -56,12 +57,12 @@ class _MainTabsState extends State<MainTabs> {
                 label: 'Dashboard',
               ),
               NavigationDestination(
-                icon: Icon(Icons.description_rounded),
-                label: 'Contract',
+                icon: Icon(Icons.calendar_month_rounded),
+                label: 'Monthly',
               ),
               NavigationDestination(
-                icon: Icon(Icons.settings_rounded),
-                label: 'Settings',
+                icon: Icon(Icons.description_rounded),
+                label: 'Contract',
               ),
             ],
           ),
@@ -122,12 +123,12 @@ class _MainTabsState extends State<MainTabs> {
               label: 'Dashboard',
             ),
             NavigationDestination(
-              icon: Icon(Icons.description_rounded),
-              label: 'Contract',
+              icon: Icon(Icons.calendar_month_rounded),
+              label: 'Monthly',
             ),
             NavigationDestination(
-              icon: Icon(Icons.settings_rounded),
-              label: 'Settings',
+              icon: Icon(Icons.description_rounded),
+              label: 'Contract',
             ),
           ],
         ),
