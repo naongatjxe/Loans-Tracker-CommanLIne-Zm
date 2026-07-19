@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loans Tracker Pro — Premium Android Loan Manager</title>
-    <!-- Google Fonts -->
+    <title>Loans Tracker Pro</title>
+    <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0b0f19;
-            --surface-color: rgba(20, 26, 42, 0.65);
-            --primary-accent: #2563eb;
-            --primary-accent-glow: rgba(37, 99, 235, 0.4);
-            --secondary-accent: #3b82f6;
-            --text-color: #f3f4f6;
-            --text-muted: #9ca3af;
-            --border-color: rgba(255, 255, 255, 0.08);
-            --glow-color: rgba(37, 99, 235, 0.15);
+            --bg: #0a0a0c;
+            --card-bg: #111114;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.16);
+            --text: #f3f4f6;
+            --text-muted: #8e929b;
+            --primary: #ffffff;
+            --primary-text: #0a0a0c;
         }
 
         * {
@@ -28,397 +27,302 @@
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            line-height: 1.6;
-            overflow-x: hidden;
-            position: relative;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            padding: 0 20px;
         }
 
-        /* Glowing Orbs in Background */
-        .orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(100px);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        .orb-1 {
-            width: 400px;
-            height: 400px;
-            background: var(--glow-color);
-            top: -100px;
-            left: -100px;
-        }
-
-        .orb-2 {
-            width: 500px;
-            height: 500px;
-            background: rgba(59, 130, 246, 0.1);
-            bottom: -150px;
-            right: -150px;
-        }
-
-        header {
-            max-width: 1200px;
+        .container {
+            max-width: 720px;
             margin: 0 auto;
-            padding: 24px;
+            padding: 40px 0 80px 0;
+        }
+
+        /* Header */
+        header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding-bottom: 60px;
         }
 
-        .logo-container {
+        .brand {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: -0.5px;
         }
 
-        .logo-icon {
-            background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent));
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
+        .brand-icon {
+            color: var(--text);
             display: flex;
             align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
 
-        .logo-icon svg {
+        .brand-icon svg {
             width: 22px;
             height: 22px;
-            fill: #white;
+            fill: currentColor;
         }
 
-        .logo-text {
-            font-size: 22px;
-            font-weight: 800;
-            letter-spacing: 0.5px;
-            background: linear-gradient(135deg, #ffffff, #9ca3af);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .github-link {
-            color: var(--text-color);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: 1px solid var(--border-color);
-            background: rgba(255, 255, 255, 0.03);
-            transition: all 0.3s ease;
-            backdrop-filter: blur(8px);
-        }
-
-        .github-link:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: var(--text-muted);
-            transform: translateY(-2px);
-        }
-
-        main {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 64px 24px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-
-        .hero-section {
-            max-width: 800px;
-            margin-bottom: 64px;
-        }
-
-        .version-tag {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 20px;
-            background: rgba(37, 99, 235, 0.1);
-            color: #60a5fa;
+        .gh-link {
             font-size: 13px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s ease;
+            font-weight: 500;
+        }
+
+        .gh-link:hover {
+            color: var(--text);
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding-bottom: 60px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            font-size: 11px;
             font-weight: 600;
-            border: 1px solid rgba(37, 99, 235, 0.2);
-            margin-bottom: 24px;
             letter-spacing: 0.5px;
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            margin-bottom: 24px;
         }
 
         h1 {
-            font-size: clamp(36px, 6vw, 64px);
-            font-weight: 900;
-            line-height: 1.1;
+            font-size: clamp(32px, 5vw, 44px);
+            font-weight: 800;
             letter-spacing: -1px;
-            margin-bottom: 20px;
-            background: linear-gradient(135deg, #ffffff 30%, #a5b4fc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+            margin-bottom: 16px;
+            color: var(--text);
         }
 
-        .hero-subtitle {
-            font-size: clamp(16px, 3vw, 20px);
+        .subtitle {
+            font-size: 16px;
             color: var(--text-muted);
-            margin-bottom: 40px;
-            max-width: 650px;
-            margin-left: auto;
-            margin-right: auto;
+            max-width: 540px;
+            margin: 0 auto 40px auto;
         }
 
-        .download-container {
+        /* Downloads Section */
+        .downloads {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            width: 100%;
-            max-width: 480px;
+            gap: 12px;
+            max-width: 440px;
             margin: 0 auto;
         }
 
         .btn {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            width: 100%;
-            padding: 16px 32px;
-            border-radius: 30px;
-            font-size: 16px;
-            font-weight: 700;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
             text-decoration: none;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             cursor: pointer;
+            width: 100%;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent));
-            color: #ffffff;
-            box-shadow: 0 8px 30px var(--primary-accent-glow);
+            background-color: var(--primary);
+            color: var(--primary-text);
+            border: 1px solid var(--primary);
         }
 
         .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 35px rgba(37, 99, 235, 0.6);
+            opacity: 0.9;
         }
 
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.03);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            backdrop-filter: blur(8px);
+            background-color: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
         }
 
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: var(--text-muted);
-            transform: translateY(-2px);
+            border-color: var(--border-hover);
+            background-color: rgba(255, 255, 255, 0.02);
         }
 
-        .download-desc {
+        .download-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            width: 100%;
+        }
+
+        @media (min-width: 480px) {
+            .download-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .btn-small-span {
+                grid-column: span 2;
+            }
+        }
+
+        .info-tag {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        /* Features Section */
+        .features {
+            border-top: 1px solid var(--border);
+            padding-top: 60px;
+            margin-top: 20px;
+        }
+
+        .features-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .features-list {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+
+        @media (min-width: 580px) {
+            .features-list {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .feature-item {
+            text-align: left;
+        }
+
+        .feat-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .feat-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 80px;
+            border-top: 1px solid var(--border);
+            padding-top: 40px;
+            text-align: center;
             font-size: 12px;
             color: var(--text-muted);
-        }
-
-        /* Features Grid */
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            width: 100%;
-            margin-top: 64px;
-        }
-
-        .feature-card {
-            background: var(--surface-color);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            padding: 32px;
-            text-align: left;
-            backdrop-filter: blur(16px);
-            transition: all 0.3s ease;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(37, 99, 235, 0.3);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        }
-
-        .feature-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 14px;
-            background: rgba(37, 99, 235, 0.1);
-            color: #60a5fa;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 24px;
-        }
-
-        .feature-icon svg {
-            width: 24px;
-            height: 24px;
-        }
-
-        .feature-title {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-
-        .feature-desc {
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        footer {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 48px 24px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            border-top: 1px solid var(--border-color);
-            font-size: 14px;
-            color: var(--text-muted);
+            gap: 8px;
         }
 
         footer a {
-            color: var(--text-color);
+            color: var(--text);
             text-decoration: none;
-        }
-
-        footer a:hover {
-            color: #60a5fa;
-        }
-
-        @media (max-width: 600px) {
-            header {
-                flex-direction: column;
-                gap: 16px;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-
-    <header>
-        <div class="logo-container">
-            <div class="logo-icon">
-                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" fill="#ffffff"/>
-                </svg>
-            </div>
-            <span class="logo-text">Loans Tracker Pro</span>
-        </div>
-        <a href="https://github.com/naongatjxe/Loans-Tracker-CommanLIne-Zm" target="_blank" class="github-link">GitHub Project</a>
-    </header>
-
-    <main>
-        <section class="hero-section">
-            <span class="version-tag">Version 1.2.1 is Live</span>
-            <h1>Take Control of Your Personal Loans</h1>
-            <p class="hero-subtitle">A premium, offline-first loans manager for Android. Track principal, calculate interest rates, and stay alert with precise scheduled notifications.</p>
-            
-            <div class="download-container">
-                <!-- Direct APK Links targeting GitHub Release v1.2.1 -->
-                <a href="https://github.com/naongatjxe/Loans-Tracker-CommanLIne-Zm/releases/download/v1.2.1/app-release.apk" class="btn btn-primary">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    </svg>
-                    Download Universal APK (All CPUs)
-                </a>
-                <a href="https://github.com/naongatjxe/Loans-Tracker-CommanLIne-Zm/releases/download/v1.2.1/app-arm64-v8a-release.apk" class="btn btn-secondary">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    Download APK (ARM64 64-bit)
-                </a>
-                <a href="https://github.com/naongatjxe/Loans-Tracker-CommanLIne-Zm/releases/download/v1.2.1/app-armeabi-v7a-release.apk" class="btn btn-secondary">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    Download APK (ARM 32-bit)
-                </a>
-                <a href="https://github.com/naongatjxe/Loans-Tracker-CommanLIne-Zm/releases/download/v1.2.1/app-x86_64-release.apk" class="btn btn-secondary" style="font-size: 13px; padding: 10px 20px;">
-                    Download APK (x86_64 Emulator)
-                </a>
-                <span class="download-desc">Clean, secure local file downloads directly from GitHub</span>
-            </div>
-        </section>
-
-        <section class="features-grid">
-            <!-- Feature 1 -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
                     </svg>
                 </div>
-                <h3 class="feature-title">Reboot Persistence</h3>
-                <p class="feature-desc">Background notification triggers persist even after your device reboots. Restores all alerts on system boot completed broadcasts automatically.</p>
+                <span>Loans Tracker Pro</span>
             </div>
+            <a href="https://github.com/naongatjxe/Loans-Tracker-CommanLIne-Zm" target="_blank" class="gh-link">GitHub</a>
+        </header>
 
-            <!-- Feature 2 -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                        <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
+        <main>
+            <section class="hero">
+                <span class="badge">Version 1.2.1</span>
+                <h1>Track. Remind. Recover.</h1>
+                <p class="subtitle">An offline-first personal loan manager for Android. Track principal amounts, calculate accrued interest, and schedule persistent payment reminders.</p>
+                
+                <div class="downloads">
+                    <!-- Recommended Universal Download -->
+                    <a href="https://github.com/naongatjxe/Loans-Tracker-CommanLIne-Zm/releases/download/v1.2.1/app-release.apk" class="btn btn-primary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download Universal APK
+                    </a>
+
+                    <!-- Sub-downloads for specific CPU architectures -->
+                    <div class="download-grid">
+                        <a href="https://github.com/naongatjxe/Loans-Tracker-CommanLIne-Zm/releases/download/v1.2.1/app-arm64-v8a-release.apk" class="btn btn-secondary">
+                            ARM64 (64-bit)
+                        </a>
+                        <a href="https://github.com/naongatjxe/Loans-Tracker-CommanLIne-Zm/releases/download/v1.2.1/app-armeabi-v7a-release.apk" class="btn btn-secondary">
+                            ARM (32-bit)
+                        </a>
+                        <a href="https://github.com/naongatjxe/Loans-Tracker-CommanLIne-Zm/releases/download/v1.2.1/app-x86_64-release.apk" class="btn btn-secondary btn-small-span">
+                            x86_64 Emulator Build
+                        </a>
+                    </div>
+                    <span class="info-tag">Secure, direct downloads verified by GitHub</span>
                 </div>
-                <h3 class="feature-title">Monthly Reports</h3>
-                <p class="feature-desc">Track loan principals and interest accumulations grouped chronologically. Detailed tables provide total loans, paid records, and aggregates.</p>
-            </div>
+            </section>
 
-            <!-- Feature 3 -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
+            <section class="features">
+                <h2 class="features-title">Core Capability</h2>
+                <div class="features-list">
+                    <div class="feature-item">
+                        <h3 class="feat-title">Reboot Persistent Alarms</h3>
+                        <p class="feat-desc">Payment reminders auto-reschedule on system reboot, guaranteeing alerts will trigger on time even if the phone restarts.</p>
+                    </div>
+                    <div class="feature-item">
+                        <h3 class="feat-title">Monthly Reports</h3>
+                        <p class="feat-desc">Groups transactions chronologically. Provides summaries of active loans, interest amounts, and monthly aggregates.</p>
+                    </div>
+                    <div class="feature-item">
+                        <h3 class="feat-title">Offline JSON Backup</h3>
+                        <p class="feat-desc">Own your data. Export your entire local settings and database to a secure JSON file to share or restore at any time.</p>
+                    </div>
+                    <div class="feature-item">
+                        <h3 class="feat-title">CSV Exports</h3>
+                        <p class="feat-desc">Export spreadsheet-compatible files for monthly report overviews and individual transaction logs.</p>
+                    </div>
                 </div>
-                <h3 class="feature-title">JSON Backups</h3>
-                <p class="feature-desc">Offline-first local backups. Export your entire local SQLite database and configuration settings into a JSON backup file to share or restore.</p>
-            </div>
+            </section>
+        </main>
 
-            <!-- Feature 4 -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-                </div>
-                <h3 class="feature-title">CSV Exports</h3>
-                <p class="feature-desc">Save spreadsheet summaries of both individual loan logs and monthly overview aggregations. Writes exports directly to your custom selected folders.</p>
-            </div>
-        </section>
-    </main>
-
-    <footer>
-        <p>&copy; 2026 Loans Tracker Pro. All Rights Reserved.</p>
-        <p>Built by <strong>Naonga Gondwe</strong> (CommandLine)</p>
-    </footer>
+        <footer>
+            <p>&copy; 2026 Loans Tracker Pro. Offline and secure.</p>
+            <p>Developed by <a href="https://github.com/naongatjxe" target="_blank">Naonga Gondwe</a></p>
+        </footer>
+    </div>
 </body>
 </html>
