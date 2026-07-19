@@ -410,7 +410,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Color(0xFF64B5F6)),
                     title: Text('Loans Tracker'),
-                    subtitle: Text('Version: beta 1'),
+                    subtitle: Text('Version: 1.2.0'),
                   ),
                   ListTile(
                     leading: Icon(Icons.person, color: Color(0xFF64B5F6)),
