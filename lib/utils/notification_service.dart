@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -70,11 +69,6 @@ class NotificationService {
 
       final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       await androidImpl?.requestNotificationsPermission();
-
-      // Request exact alarm permission on Android 12+
-      if (await Permission.scheduleExactAlarm.isDenied) {
-        await Permission.scheduleExactAlarm.request();
-      }
     } catch (_) {}
   }
 
@@ -139,7 +133,7 @@ class NotificationService {
           bodyBefore,
           beforeUtc,
           details,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
       } else if (dueLocal.isAfter(localNow) && beforeLocal.isBefore(localNow)) {
         // If "one day before" has already passed but due is still in future, show immediate brief reminder
@@ -160,7 +154,7 @@ class NotificationService {
         bodyDue,
         dueUtc,
         details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     } else if (dueLocal.isBefore(localNow) && !loan.isPaid) {
       // If due date is today/past and unpaid, show an immediate notification
@@ -187,7 +181,7 @@ class NotificationService {
           bodyOverdue,
           overdueUtc,
           details,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
       }
     }

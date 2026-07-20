@@ -6,8 +6,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/person.dart';
 import '../models/contract.dart';
@@ -17,69 +15,13 @@ import '../theme/theme_controller.dart';
 
 class BackupService {
   static Future<Directory> _getPublicLoansTrackerDir() async {
-    Directory? baseDir;
-
-    // Check SharedPreferences for custom path
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final customPath = prefs.getString('custom_export_path');
-      if (customPath != null && customPath.isNotEmpty) {
-        final d = Directory(customPath);
-        if (await d.parent.exists() || await d.exists()) {
-          baseDir = d;
-        }
-      }
-    } catch (_) {}
-
-    // Fallback if no custom path is configured or valid
-    if (baseDir == null) {
-      // Try common Android Downloads paths first, appending "/Loans Tracker"
-      final androidPaths = [
-        '/storage/emulated/0/Download/Loans Tracker',
-        '/storage/emulated/0/Downloads/Loans Tracker',
-        '/storage/emulated/0/Download',
-        '/storage/emulated/0/Downloads'
-      ];
-
-      for (final p in androidPaths) {
-        try {
-          if (p == '/storage/emulated/0/Download' || p == '/storage/emulated/0/Downloads') {
-            if (await Directory(p).exists()) {
-              baseDir = Directory('$p/Loans Tracker');
-              break;
-            }
-          } else {
-            final parent = Directory(p).parent;
-            if (await parent.exists()) {
-              baseDir = Directory(p);
-              break;
-            }
-          }
-        } catch (_) {}
-      }
-    }
-
-    // Next fallback: path_provider's getDownloadsDirectory
-    if (baseDir == null) {
-      try {
-        final downloads = await getDownloadsDirectory();
-        if (downloads != null) {
-          baseDir = Directory('${downloads.path}/Loans Tracker');
-        }
-      } catch (_) {}
-    }
-
-    // Final fallback: temporary directory
-    if (baseDir == null) {
-      final temp = await getTemporaryDirectory();
-      baseDir = Directory('${temp.path}/Loans Tracker');
-    }
-
-    // Ensure directory exists
+    // Write directly to the app's internal temporary directory.
+    // This allows creating the file without requiring any storage permissions.
+    final temp = await getTemporaryDirectory();
+    final baseDir = Directory('${temp.path}/Loans Tracker');
     if (!await baseDir.exists()) {
       await baseDir.create(recursive: true);
     }
-
     return baseDir;
   }
 
@@ -89,10 +31,6 @@ class BackupService {
       final loanProvider = Provider.of<LoanProvider>(context, listen: false);
       final themeController = Provider.of<ThemeController>(context, listen: false);
       final notifService = NotificationService();
-
-      if (Platform.isAndroid) {
-        await Permission.storage.request();
-      }
 
       // Check context mount status before using context after async gaps
       if (!context.mounted) return;
@@ -118,23 +56,8 @@ class BackupService {
       final backupFile = File('${destDir.path}/$fileName');
       await backupFile.writeAsString(jsonString);
 
-      // Shorten the output path display for SnackBar
-      String displayPath = 'Downloads/Loans Tracker';
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final customPath = prefs.getString('custom_export_path');
-        if (customPath != null && customPath.isNotEmpty) {
-          final parts = customPath.split('/');
-          if (parts.length >= 2) {
-            displayPath = '${parts[parts.length - 2]}/${parts.last}';
-          } else {
-            displayPath = customPath;
-          }
-        }
-      } catch (_) {}
-
       messenger.showSnackBar(
-        SnackBar(content: Text('Backup saved to: $displayPath/$fileName')),
+        const SnackBar(content: Text('Backup file prepared. Choose where to save/send it.')),
       );
 
       await Share.shareXFiles(

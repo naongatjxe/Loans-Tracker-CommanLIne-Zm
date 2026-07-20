@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../theme/theme_controller.dart';
@@ -16,10 +14,6 @@ class WelcomeOnboardingPage extends StatefulWidget {
 
 class _WelcomeOnboardingPageState extends State<WelcomeOnboardingPage> {
   bool _notificationGranted = false;
-  bool _exactAlarmGranted = false;
-  bool _storageGranted = false;
-  String _saveFolderPath = 'Downloads/Loans Tracker';
-  String? _rawCustomPath;
 
   @override
   void initState() {
@@ -27,49 +21,10 @@ class _WelcomeOnboardingPageState extends State<WelcomeOnboardingPage> {
     _checkPermissionStatuses();
   }
 
-  int _getAndroidSdkVersion() {
-    if (!Platform.isAndroid) return 0;
-    try {
-      final sdkMatch = RegExp(r'SDK\s+(\d+)').firstMatch(Platform.operatingSystemVersion) ??
-                       RegExp(r'API\s+(\d+)').firstMatch(Platform.operatingSystemVersion);
-      if (sdkMatch != null) {
-        return int.parse(sdkMatch.group(1)!);
-      }
-      final androidMatch = RegExp(r'Android\s+(\d+)').firstMatch(Platform.operatingSystemVersion);
-      if (androidMatch != null) {
-        final version = int.parse(androidMatch.group(1)!);
-        if (version >= 13) return 33;
-        if (version == 12) return 31;
-        if (version == 11) return 30;
-        if (version == 10) return 29;
-        if (version == 9) return 28;
-      }
-    } catch (_) {}
-    return 0;
-  }
-
   Future<void> _checkPermissionStatuses() async {
     final notificationStatus = await Permission.notification.status;
-    final exactAlarmStatus = await Permission.scheduleExactAlarm.status;
-    
-    bool storageGranted = false;
-    if (Platform.isAndroid) {
-      final sdk = _getAndroidSdkVersion();
-      if (sdk >= 30) {
-        final manageStatus = await Permission.manageExternalStorage.status;
-        storageGranted = manageStatus.isGranted;
-      } else {
-        final storageStatus = await Permission.storage.status;
-        storageGranted = storageStatus.isGranted;
-      }
-    } else {
-      storageGranted = true;
-    }
-
     setState(() {
       _notificationGranted = notificationStatus.isGranted;
-      _exactAlarmGranted = exactAlarmStatus.isGranted;
-      _storageGranted = storageGranted;
     });
   }
 
@@ -80,50 +35,9 @@ class _WelcomeOnboardingPageState extends State<WelcomeOnboardingPage> {
     });
   }
 
-  Future<void> _requestExactAlarm() async {
-    final status = await Permission.scheduleExactAlarm.request();
-    setState(() {
-      _exactAlarmGranted = status.isGranted;
-    });
-  }
-
-  Future<void> _requestStorage() async {
-    PermissionStatus status;
-    if (Platform.isAndroid && _getAndroidSdkVersion() >= 30) {
-      status = await Permission.manageExternalStorage.request();
-    } else {
-      status = await Permission.storage.request();
-    }
-    setState(() {
-      _storageGranted = status.isGranted;
-    });
-  }
-
-  Future<void> _chooseFolder() async {
-    try {
-      final path = await FilePicker.platform.getDirectoryPath();
-      if (path != null) {
-        setState(() {
-          _rawCustomPath = path;
-          // Clean presentation for user
-          if (path.length > 35) {
-            _saveFolderPath = '...${path.substring(path.length - 32)}';
-          } else {
-            _saveFolderPath = path;
-          }
-        });
-      }
-    } catch (_) {
-      // ignore
-    }
-  }
-
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('has_completed_onboarding', true);
-    if (_rawCustomPath != null) {
-      await prefs.setString('custom_export_path', _rawCustomPath!);
-    }
     if (mounted) {
       Navigator.pushReplacement(
         context,
@@ -137,7 +51,6 @@ class _WelcomeOnboardingPageState extends State<WelcomeOnboardingPage> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final themeCtrl = Provider.of<ThemeController>(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -212,128 +125,6 @@ class _WelcomeOnboardingPageState extends State<WelcomeOnboardingPage> {
                         onTap: _requestNotification,
                         accentColor: themeCtrl.accent,
                         theme: theme,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Permission 2: Exact Alarms
-                      _buildPermissionCard(
-                        icon: Icons.alarm_rounded,
-                        title: 'Exact Alarm Scheduling',
-                        description: 'Ensures payment reminders trigger precisely at the scheduled hour.',
-                        granted: _exactAlarmGranted,
-                        onTap: _requestExactAlarm,
-                        accentColor: themeCtrl.accent,
-                        theme: theme,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Permission 3: Storage
-                      _buildPermissionCard(
-                        icon: Icons.folder_shared_rounded,
-                        title: 'Storage Write Permission',
-                        description: 'Required to create folders and save CSV exports and backup files.',
-                        granted: _storageGranted,
-                        onTap: _requestStorage,
-                        accentColor: themeCtrl.accent,
-                        theme: theme,
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Folder Selection Header
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'EXPORT DIRECTORY',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                            color: themeCtrl.accent,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Directory Card
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: theme.dividerColor.withValues(alpha: 0.08),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withValues(alpha: 0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.folder_copy_rounded,
-                                    color: Colors.blue,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Save Location',
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        _saveFolderPath,
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: cs.onSurface.withValues(alpha: 0.6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: TextButton.icon(
-                                style: TextButton.styleFrom(
-                                  foregroundColor: themeCtrl.accent,
-                                  backgroundColor: themeCtrl.accent.withValues(alpha: 0.08),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                ),
-                                onPressed: _chooseFolder,
-                                icon: const Icon(Icons.drive_file_move_rounded, size: 18),
-                                label: const Text(
-                                  'Choose Custom Directory',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
 
                       const Spacer(),

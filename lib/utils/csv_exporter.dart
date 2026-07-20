@@ -1,85 +1,24 @@
 import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/person.dart';
 import 'package:intl/intl.dart';
 
 class CsvExporter {
   static Future<Directory> _getPublicLoansTrackerDir() async {
-    Directory? baseDir;
-
-    // Check SharedPreferences for custom path
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final customPath = prefs.getString('custom_export_path');
-      if (customPath != null && customPath.isNotEmpty) {
-        final d = Directory(customPath);
-        if (await d.parent.exists() || await d.exists()) {
-          baseDir = d;
-        }
-      }
-    } catch (_) {}
-
-    // Fallback if no custom path is configured or valid
-    if (baseDir == null) {
-      // Try common Android Downloads paths first, appending "/Loans Tracker"
-      final androidPaths = [
-        '/storage/emulated/0/Download/Loans Tracker',
-        '/storage/emulated/0/Downloads/Loans Tracker',
-        '/storage/emulated/0/Download',
-        '/storage/emulated/0/Downloads'
-      ];
-
-      for (final p in androidPaths) {
-        try {
-          if (p == '/storage/emulated/0/Download' || p == '/storage/emulated/0/Downloads') {
-            if (await Directory(p).exists()) {
-              baseDir = Directory('$p/Loans Tracker');
-              break;
-            }
-          } else {
-            final parent = Directory(p).parent;
-            if (await parent.exists()) {
-              baseDir = Directory(p);
-              break;
-            }
-          }
-        } catch (_) {}
-      }
-    }
-
-    // Next fallback: path_provider's getDownloadsDirectory
-    if (baseDir == null) {
-      try {
-        final downloads = await getDownloadsDirectory();
-        if (downloads != null) {
-          baseDir = Directory('${downloads.path}/Loans Tracker');
-        }
-      } catch (_) {}
-    }
-
-    // Final fallback: temporary directory
-    if (baseDir == null) {
-      final temp = await getTemporaryDirectory();
-      baseDir = Directory('${temp.path}/Loans Tracker');
-    }
-
-    // Ensure directory exists
+    // Write directly to the app's internal temporary directory.
+    // This allows creating the file without requiring any storage permissions.
+    final temp = await getTemporaryDirectory();
+    final baseDir = Directory('${temp.path}/Loans Tracker');
     if (!await baseDir.exists()) {
       await baseDir.create(recursive: true);
     }
-
     return baseDir;
   }
 
   static Future<String> exportLoansToCsv(List<Person> loans, {String? outputDirPath}) async {
     try {
-      if (Platform.isAndroid) {
-        await Permission.storage.request();
-      }
       // Create CSV data
       List<List<String>> csvData = [
         // Header row
@@ -169,9 +108,6 @@ class CsvExporter {
 
   static Future<String> exportMonthlyReportsToCsv(List<Person> loans, {String? outputDirPath}) async {
     try {
-      if (Platform.isAndroid) {
-        await Permission.storage.request();
-      }
       // Group loans by year and month
       final Map<DateTime, List<Person>> groupsMap = {};
       for (final p in loans) {

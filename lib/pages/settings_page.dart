@@ -410,7 +410,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Color(0xFF64B5F6)),
                     title: Text('Loans Tracker'),
-                    subtitle: Text('Version: 1.2.1'),
+                    subtitle: Text('Version: 1.2.2'),
                   ),
                   ListTile(
                     leading: Icon(Icons.person, color: Color(0xFF64B5F6)),
@@ -476,25 +476,9 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       // 1. Generate the CSV using our robust package-backed exporter
       final filePath = await CsvExporter.exportLoansToCsv(people);
-      final fileName = filePath.split('/').last;
-
-      // Shorten the output path display for SnackBar
-      String displayPath = 'Downloads/Loans Tracker';
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final customPath = prefs.getString('custom_export_path');
-        if (customPath != null && customPath.isNotEmpty) {
-          final parts = customPath.split('/');
-          if (parts.length >= 2) {
-            displayPath = '${parts[parts.length - 2]}/${parts.last}';
-          } else {
-            displayPath = customPath;
-          }
-        }
-      } catch (_) {}
 
       messenger.showSnackBar(
-        SnackBar(content: Text('CSV saved to: $displayPath/$fileName')),
+        const SnackBar(content: Text('CSV file prepared. Choose where to save/send it.')),
       );
 
       // 2. Share the file immediately using the cross-platform share_plus sheet
@@ -521,25 +505,9 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       // 1. Generate the CSV using our robust package-backed exporter
       final filePath = await CsvExporter.exportMonthlyReportsToCsv(people);
-      final fileName = filePath.split('/').last;
-
-      // Shorten the output path display for SnackBar
-      String displayPath = 'Downloads/Loans Tracker';
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final customPath = prefs.getString('custom_export_path');
-        if (customPath != null && customPath.isNotEmpty) {
-          final parts = customPath.split('/');
-          if (parts.length >= 2) {
-            displayPath = '${parts[parts.length - 2]}/${parts.last}';
-          } else {
-            displayPath = customPath;
-          }
-        }
-      } catch (_) {}
 
       messenger.showSnackBar(
-        SnackBar(content: Text('Monthly CSV saved to: $displayPath/$fileName')),
+        const SnackBar(content: Text('Monthly CSV prepared. Choose where to save/send it.')),
       );
 
       // 2. Share the file immediately using the cross-platform share_plus sheet
