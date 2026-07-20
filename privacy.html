@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Loans Tracker Pro</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --card-bg: #111114;
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #f3f4f6;
+            --text-muted: #8e929b;
+            --primary: #ffffff;
+            --accent: #64b5f6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            padding: 0 20px;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 60px 0 80px 0;
+        }
+
+        /* Header */
+        header {
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        .brand {
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: -0.5px;
+            color: var(--text);
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: clamp(28px, 4vw, 36px);
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.2;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .last-updated {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Content */
+        section {
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 12px;
+            margin-top: 20px;
+            border-left: 3px solid var(--accent);
+            padding-left: 10px;
+        }
+
+        p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        ul {
+            margin-left: 20px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        .highlight-box {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+
+        .highlight-box p {
+            color: var(--text);
+            margin-bottom: 0;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 60px;
+            border-top: 1px solid var(--border);
+            padding-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        footer a {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s ease;
+            margin-bottom: 20px;
+        }
+
+        .back-link:hover {
+            color: var(--text);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Home
+        </a>
+
+        <header>
+            <div class="brand">Loans Tracker Pro</div>
+            <h1>Privacy Policy</h1>
+            <div class="last-updated">Last updated: July 20, 2026</div>
+        </header>
+
+        <main>
+            <section>
+                <p>Welcome to Loans Tracker Pro, a personal finance utility app developed by <strong>CommandLine</strong>. Your privacy is of paramount importance to us. This Privacy Policy details how we handle information in connection with your use of our mobile application.</p>
+                
+                <div class="highlight-box">
+                    <p>🔒 Loans Tracker Pro is an offline-first application. We do not operate external database servers, and we never collect, store, or transmit your financial records or personal information to any third parties.</p>
+                </div>
+            </section>
+
+            <section>
+                <h2>1. Information Collection and Use</h2>
+                <p>Because the app operates strictly on your local device, we do not collect any personal data or financial logs. All data you input—including borrower names, NRC numbers, phone numbers, principal loan amounts, interest rates, and transaction dates—is stored securely on your device's local sandbox storage using SQLite database protocols.</p>
+            </section>
+
+            <section>
+                <h2>2. Device Permissions Used</h2>
+                <p>To provide core application functions, the app requests the following system permission:</p>
+                <ul>
+                    <li><strong>Notifications:</strong> Used strictly to display local payment due reminders and overdue alerts. This permission is requested on-demand, and reminders are generated entirely locally on your device's background scheduler.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>3. File Exports & Backups</h2>
+                <p>Loans Tracker Pro allows you to export your data to CSV format and create offline JSON backups. 
+                These actions are initiated solely by you. The generated files are saved to your local device directories (using standard system file picker frameworks) or shared manually by you via the system Share Sheet. We do not have access to these files.</p>
+            </section>
+
+            <section>
+                <h2>4. Third-Party Services and Analytics</h2>
+                <p>Our app does not use any third-party analytics services, software development kits (SDKs) that collect tracking information, or advertising networks. Your in-app activity remains completely private to you.</p>
+            </section>
+
+            <section>
+                <h2>5. Children's Privacy</h2>
+                <p>Our application is intended for use by individuals who are at least 18 years of age (or the legal age to manage loans/contracts in your jurisdiction). Since we collect no data from any user, we do not collect or request information from children under any circumstances.</p>
+            </section>
+
+            <section>
+                <h2>6. Changes to This Privacy Policy</h2>
+                <p>We may update our Privacy Policy from time to time. Since we do not collect contact details or push notifications externally, any updates will be made available directly on this page. We encourage you to review this policy periodically for any changes.</p>
+            </section>
+
+            <section>
+                <h2>7. Contact Us</h2>
+                <p>If you have any questions or suggestions regarding our Privacy Policy, please feel free to reach out to us at: <strong>naongagondwe@gmail.com</strong>.</p>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 Loans Tracker Pro. Offline and secure.</p>
+        </footer>
+    </div>
+</body>
+</html>
