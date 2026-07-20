@@ -1,4 +1,4 @@
-package com.naonga.commandLine
+package com.commandLine.naonga
 
 import android.content.Intent
 import android.net.Uri
