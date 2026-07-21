@@ -11,12 +11,24 @@ A premium, modern Flutter application for managing personal loans and aggregates
 ### 🎨 **Modern UI/UX**
 - **Centered Branded AppBar Layout**: Main screen AppBar displays the wallet brand icon and centered app title "Loans Tracker Pro".
 - **Theme Matching**: The welcome screen conforms dynamically to the light/dark mode and accent colors selected in settings.
+- **Always Dark Mode**: Styled with a premium dark mode layout matching the high-end design aesthetics requested by users.
 - **Card Highlight Fixes**: Monthly reports and expandable cards clip touch splashes cleanly using standard Card widgets with zero highlight leaks.
 
 ### 🔔 **Customizable Alerts (Reboot Persistent)**
 - **Granular Controls**: Exposes notification settings in Settings to enable/disable payment notifications, configure a custom reminder delivery hour/minute via a time picker, and toggle a one-day-before reminder.
 - **Daily Overdue Alerts**: Sends daily payment reminders for the first 7 days after a loan becomes overdue.
 - **Reboot Persistence**: Automatically reschedules all active reminder notifications after a device reboot by intercepting `BOOT_COMPLETED` broadcasts.
+
+### 📋 **PDF Contract Generator & History**
+- **PDF Contract Generator**: Generate professional contract agreements for active or manually entered loans with lender/company details, custom terms, digital signature canvas, and dynamic signing dates.
+- **Contract History**: A persistent historical list of generated contracts with full delete hooks and interactive editing to update lender info and regenerate updated PDFs.
+- **Auto-Filtered Paid Borrowers**: Paid borrowers automatically disappear from the generator selection tab, keeping active generation clean and simple.
+
+### 🔄 **Re-borrow Feature**
+- **Instant Re-borrowing**: From the loan details page of any paid loan, instantly start a new loan for that borrower. The form pre-populates static info (Name, NRC, Phone, Workplace) while defaulting the start date to today and letting you customize the new loan amount and interest.
+
+### 🔢 **Uniform Country Code Fields**
+- **Standardized Code Layout**: Side-by-side editable prefix fields restricted to a maximum of 3 characters total starting with `+` (e.g. `+26`) across all client and lender phone entry fields.
 
 ### 📊 **Monthly Reports**
 - **Chronological Grouping**: Groups and aggregates loan data by month and year.

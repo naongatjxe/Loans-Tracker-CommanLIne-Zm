@@ -8,6 +8,7 @@ class Contract {
   final String lenderAddress;
   final DateTime creationDate;
   final String terms;
+  final DateTime? signatureDate;
 
   Contract({
     required this.id,
@@ -17,6 +18,7 @@ class Contract {
     this.lenderAddress = '',
     required this.creationDate,
     this.terms = '',
+    this.signatureDate,
   });
 
   Contract copyWith({
@@ -27,6 +29,7 @@ class Contract {
     String? lenderAddress,
     DateTime? creationDate,
     String? terms,
+    DateTime? signatureDate,
   }) {
     return Contract(
       id: id ?? this.id,
@@ -36,6 +39,7 @@ class Contract {
       lenderAddress: lenderAddress ?? this.lenderAddress,
       creationDate: creationDate ?? this.creationDate,
       terms: terms ?? this.terms,
+      signatureDate: signatureDate ?? this.signatureDate,
     );
   }
 
@@ -48,6 +52,7 @@ class Contract {
       'lenderAddress': lenderAddress,
       'creationDate': creationDate.millisecondsSinceEpoch,
       'terms': terms,
+      'signatureDate': signatureDate?.millisecondsSinceEpoch,
     };
   }
 
@@ -60,6 +65,9 @@ class Contract {
       lenderAddress: map['lenderAddress'] ?? '',
       creationDate: DateTime.fromMillisecondsSinceEpoch(map['creationDate']),
       terms: map['terms'] ?? '',
+      signatureDate: map['signatureDate'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['signatureDate'])
+          : null,
     );
   }
 }

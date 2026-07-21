@@ -8,6 +8,7 @@ import '../utils/loan_provider.dart';
 import '../utils/csv_exporter.dart';
 import '../utils/backup_service.dart';
 import '../utils/notification_service.dart';
+import 'pin_lock_page.dart';
 
 
 class SettingsPage extends StatefulWidget {
@@ -152,25 +153,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.transparent,
-        toolbarHeight: 48,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
+        backgroundColor: Colors.transparent,
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -198,9 +181,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     activeTrackColor: accent.withValues(alpha: 0.5),
                     title: const Text('Always Dark Mode'),
                     subtitle: const Text('Force dark theme, otherwise follow system settings'),
-                    value: themeCtrl.mode == ThemeMode.dark,
+                    value: true,
                     onChanged: (bool value) {
-                      themeCtrl.setMode(value ? ThemeMode.dark : ThemeMode.system);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Dark mode is forced for this application.'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
                     },
                     secondary: Icon(
                       Icons.dark_mode_rounded,
@@ -212,6 +200,8 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Accent Color Card
           Card(
             elevation: 2,
             shape: RoundedRectangleBorder(
@@ -228,27 +218,112 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(height: 12),
                   // Accent Colors
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children:
-                        [
-                              Colors.blue,
-                              Colors.green,
-                              Colors.purple,
-                              Colors.orange,
-                              Colors.red,
-                            ]
-                            .map(
-                              (color) =>
-                                  _buildColorOption(color, accent, themeCtrl),
-                            )
-                            .toList(),
+                  Center(
+                    child: Wrap(
+                      spacing: 16,
+                      runSpacing: 12,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        const Color(0xFF3B82F6), // Indigo Blue
+                        const Color(0xFF10B981), // Emerald Green
+                        const Color(0xFF8B5CF6), // Purple
+                        const Color(0xFFF97316), // Orange
+                        const Color(0xFFF43F5E), // Crimson Rose
+                      ].map((color) => _buildColorOption(color, accent, themeCtrl)).toList(),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          // Security lock card
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Security',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    activeThumbColor: accent,
+                    activeTrackColor: accent.withValues(alpha: 0.5),
+                    title: const Text('Passcode Lock'),
+                    subtitle: const Text('Require a 4-digit PIN to open the app'),
+                    value: themeCtrl.pinLockEnabled,
+                    onChanged: (bool value) async {
+                      if (value) {
+                        final pinCreated = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PinLockPage(isSetupMode: true),
+                          ),
+                        );
+                        if (pinCreated == true) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('PIN Passcode Lock enabled successfully!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } else {
+                        final verified = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PinLockPage(
+                              isSetupMode: false,
+                              onSuccess: () => Navigator.pop(context, true),
+                            ),
+                          ),
+                        );
+                        if (verified == true) {
+                          themeCtrl.setPinLockEnabled(false);
+                          themeCtrl.setPinCode('');
+                          themeCtrl.setBiometricsEnabled(false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Passcode Lock disabled'),
+                              backgroundColor: Colors.blue,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    secondary: Icon(
+                      Icons.security_rounded,
+                      color: accent,
+                    ),
+                  ),
+                  if (themeCtrl.pinLockEnabled)
+                    SwitchListTile(
+                      activeThumbColor: accent,
+                      activeTrackColor: accent.withValues(alpha: 0.5),
+                      title: const Text('Biometric Unlock'),
+                      subtitle: const Text('Use fingerprint or face recognition'),
+                      value: themeCtrl.biometricsEnabled,
+                      onChanged: (bool value) async {
+                        themeCtrl.setBiometricsEnabled(value);
+                      },
+                      secondary: Icon(
+                        Icons.fingerprint_rounded,
+                        color: accent,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Card(
             elevation: 2,
             shape: RoundedRectangleBorder(
@@ -301,27 +376,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                   ],
-                  ListTile(
-                    leading: Icon(
-                      Icons.notification_important_rounded,
-                      color: accent,
-                    ),
-                    title: const Text('Send Test Notification'),
-                    subtitle: const Text('Triggers an immediate test reminder to verify notifications work'),
-                    onTap: () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      try {
-                        await NotificationService().showTestNotification(
-                          title: 'Test Notification',
-                          body: 'This is a test notification from Loans Tracker Pro!',
-                        );
-                      } catch (e) {
-                        messenger.showSnackBar(
-                          SnackBar(content: Text('Failed to trigger notification: $e')),
-                        );
-                      }
-                    },
-                  ),
+
                 ],
               ),
             ),
@@ -343,45 +398,45 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(height: 12),
                   ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.file_download,
-                      color: Color(0xFF64B5F6),
+                      color: accent,
                     ),
                     title: const Text('Export CSV'),
                     subtitle: const Text('Export all loan data to CSV file'),
                     onTap: () => _exportCsv(context),
                   ),
                   ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.calendar_month_rounded,
-                      color: Color(0xFF64B5F6),
+                      color: accent,
                     ),
                     title: const Text('Export Monthly CSV'),
                     subtitle: const Text('Export monthly report summaries to CSV'),
                     onTap: () => _exportMonthlyCsv(context),
                   ),
                   ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.backup_rounded,
-                      color: Color(0xFF64B5F6),
+                      color: accent,
                     ),
                     title: const Text('Backup Data'),
                     subtitle: const Text('Backup settings and loans to a JSON file'),
                     onTap: () => BackupService.backupData(context),
                   ),
                   ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.restore_rounded,
-                      color: Color(0xFF64B5F6),
+                      color: accent,
                     ),
                     title: const Text('Restore Data'),
                     subtitle: const Text('Restore settings and loans from a JSON file'),
                     onTap: () => BackupService.restoreData(context),
                   ),
                   ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.folder_open_rounded,
-                      color: Color(0xFF64B5F6),
+                      color: accent,
                     ),
                     title: const Text('Change Save Directory'),
                     subtitle: Text('Current: $_activeExportPath'),
@@ -401,26 +456,26 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     'About',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   ListTile(
-                    leading: Icon(Icons.info_outline, color: Color(0xFF64B5F6)),
-                    title: Text('Loans Tracker'),
-                    subtitle: Text('Version: 1.2.2'),
+                    leading: Icon(Icons.info_outline, color: accent),
+                    title: const Text('Loans Tracker'),
+                    subtitle: const Text('Version: 1.2.2'),
                   ),
                   ListTile(
-                    leading: Icon(Icons.person, color: Color(0xFF64B5F6)),
-                    title: Text('Developer'),
-                    subtitle: Text('Naonga Gondwe'),
+                    leading: Icon(Icons.person, color: accent),
+                    title: const Text('Developer'),
+                    subtitle: const Text('Naonga Gondwe'),
                   ),
                   ListTile(
-                    leading: Icon(Icons.business, color: Color(0xFF64B5F6)),
-                    title: Text('Developer Company'),
-                    subtitle: Text('CommandLine'),
+                    leading: Icon(Icons.business, color: accent),
+                    title: const Text('Developer Company'),
+                    subtitle: const Text('CommandLine'),
                   ),
                 ],
               ),

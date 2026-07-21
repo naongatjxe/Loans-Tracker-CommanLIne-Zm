@@ -3,21 +3,20 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import '../models/contract.dart';
-// Removed unused import of InterestCalculator; total due is now calculated
-// using the same fixed per-term interest formula used in the Person model.
 
 class PdfGenerator {
-  static Future<Uint8List> generateContract(Contract contract) async {
+  static Future<Uint8List> generateContract(
+    Contract contract, {
+    Uint8List? lenderSignature,
+  }) async {
     final pdf = pw.Document();
     final dateFormat = DateFormat('dd MMMM yyyy');
     final currencyFormat = NumberFormat.currency(symbol: 'K ');
 
-    // Calculate the total amount due using the fixed per-term interest
-    // formula used in the app. This ensures the contract PDF reflects the
-    // principal plus the agreed-term interest (amount * interestRate%). See
-    // Person.totalForTerm() for the corresponding logic in the model layer.
-    // Use the Person model's method so calculation logic is centralised
     final double termTotal = contract.person.calculateAmountDue(contract.person.dueDate);
+
+    // Load signature images if available
+    final lenderSigImage = lenderSignature != null ? pw.MemoryImage(lenderSignature) : null;
 
     // Define styles
     final headerStyle = pw.TextStyle(
@@ -33,11 +32,7 @@ class PdfGenerator {
     );
 
     final labelStyle = pw.TextStyle(fontSize: 11, color: PdfColors.blueGrey700);
-
-    final valueStyle = pw.TextStyle(
-      fontSize: 11,
-      fontWeight: pw.FontWeight.bold,
-    );
+    final valueStyle = pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold);
 
     final highlightStyle = pw.TextStyle(
       fontSize: 12,
@@ -55,16 +50,10 @@ class PdfGenerator {
             children: [
               // Header with border
               pw.Container(
-                padding: const pw.EdgeInsets.symmetric(
-                  vertical: 20,
-                  horizontal: 10,
-                ),
+                padding: const pw.EdgeInsets.symmetric(vertical: 20, horizontal: 10),
                 decoration: pw.BoxDecoration(
                   border: pw.Border(
-                    bottom: pw.BorderSide(
-                      color: PdfColors.blueGrey200,
-                      width: 2,
-                    ),
+                    bottom: pw.BorderSide(color: PdfColors.blueGrey200, width: 2),
                   ),
                 ),
                 child: pw.Row(
@@ -76,18 +65,12 @@ class PdfGenerator {
                       children: [
                         pw.Text(
                           'Date: ${dateFormat.format(contract.creationDate)}',
-                          style: pw.TextStyle(
-                            fontSize: 11,
-                            color: PdfColors.grey700,
-                          ),
+                          style: pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
                         ),
                         pw.SizedBox(height: 4),
                         pw.Text(
                           'Contract ID: ${contract.id.substring(0, 8)}',
-                          style: pw.TextStyle(
-                            fontSize: 9,
-                            color: PdfColors.grey600,
-                          ),
+                          style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
                         ),
                       ],
                     ),
@@ -99,8 +82,7 @@ class PdfGenerator {
 
               // Contract introduction
               pw.Paragraph(
-                text:
-                    'This loan agreement ("Agreement") is made and entered into on ${dateFormat.format(contract.creationDate)} between:',
+                text: 'This loan agreement ("Agreement") is made and entered into on ${dateFormat.format(contract.creationDate)} between:',
                 style: pw.TextStyle(fontSize: 11),
               ),
 
@@ -109,11 +91,9 @@ class PdfGenerator {
               // Parties section
               pw.Container(
                 padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
+                decoration: const pw.BoxDecoration(
                   color: PdfColors.grey100,
-                  borderRadius: const pw.BorderRadius.all(
-                    pw.Radius.circular(6),
-                  ),
+                  borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -133,17 +113,11 @@ class PdfGenerator {
                               pw.Text(contract.companyName, style: valueStyle),
                               if (contract.lenderPhone.isNotEmpty) ...[
                                 pw.SizedBox(height: 2),
-                                pw.Text(
-                                  'Phone: ${contract.lenderPhone}',
-                                  style: pw.TextStyle(fontSize: 10),
-                                ),
+                                pw.Text('Phone: ${contract.lenderPhone}', style: pw.TextStyle(fontSize: 10)),
                               ],
                               if (contract.lenderAddress.isNotEmpty) ...[
                                 pw.SizedBox(height: 2),
-                                pw.Text(
-                                  'Address: ${contract.lenderAddress}',
-                                  style: pw.TextStyle(fontSize: 10),
-                                ),
+                                pw.Text('Address: ${contract.lenderAddress}', style: pw.TextStyle(fontSize: 10)),
                               ],
                             ],
                           ),
@@ -158,18 +132,9 @@ class PdfGenerator {
                               pw.SizedBox(height: 4),
                               pw.Text(contract.person.name, style: valueStyle),
                               pw.SizedBox(height: 2),
-                              pw.Text(
-                                'NRC: ${contract.person.nrc}',
-                                style: pw.TextStyle(fontSize: 10),
-                              ),
-                              pw.Text(
-                                'Phone: ${contract.person.phone}',
-                                style: pw.TextStyle(fontSize: 10),
-                              ),
-                              pw.Text(
-                                'Workplace: ${contract.person.workplace}',
-                                style: pw.TextStyle(fontSize: 10),
-                              ),
+                              pw.Text('NRC: ${contract.person.nrc}', style: pw.TextStyle(fontSize: 10)),
+                              pw.Text('Phone: ${contract.person.phone}', style: pw.TextStyle(fontSize: 10)),
+                              pw.Text('Workplace: ${contract.person.workplace}', style: pw.TextStyle(fontSize: 10)),
                             ],
                           ),
                         ),
@@ -184,38 +149,27 @@ class PdfGenerator {
               // Loan details section
               pw.Container(
                 padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
+                decoration: const pw.BoxDecoration(
                   color: PdfColors.grey100,
-                  borderRadius: const pw.BorderRadius.all(
-                    pw.Radius.circular(6),
-                  ),
+                  borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text('LOAN DETAILS', style: sectionTitleStyle),
                     pw.SizedBox(height: 10),
-                    _buildDetailRow(
-                      'Principal Amount:',
-                      currencyFormat.format(contract.person.amount),
-                    ),
+                    _buildDetailRow('Principal Amount:', currencyFormat.format(contract.person.amount)),
                     _buildDetailRow(
                       'Interest Rate:',
                       '${contract.person.interestRate}%',
                     ),
-                    _buildDetailRow(
-                      'Loan Date:',
-                      dateFormat.format(contract.person.loanDate),
-                    ),
-                    _buildDetailRow(
-                      'Due Date:',
-                      dateFormat.format(contract.person.dueDate),
-                    ),
+                    _buildDetailRow('Loan Date:', dateFormat.format(contract.person.loanDate)),
+                    _buildDetailRow('Due Date:', dateFormat.format(contract.person.dueDate)),
                     pw.SizedBox(height: 10),
                     pw.Divider(color: PdfColors.grey300),
                     pw.SizedBox(height: 10),
                     _buildDetailRow(
-                      'Total Amount Payable:',
+                      'Expected Total Payable:',
                       currencyFormat.format(termTotal),
                       labelStyle: highlightStyle,
                       valueStyle: highlightStyle,
@@ -224,102 +178,76 @@ class PdfGenerator {
                 ),
               ),
 
-              pw.SizedBox(height: 20),
+              pw.SizedBox(height: 15),
 
               // Terms and conditions
               pw.Container(
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius: const pw.BorderRadius.all(
-                    pw.Radius.circular(6),
-                  ),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text('TERMS AND CONDITIONS', style: sectionTitleStyle),
-                    pw.SizedBox(height: 10),
-                    pw.Text(contract.terms, style: pw.TextStyle(fontSize: 10)),
+                    pw.SizedBox(height: 6),
+                    pw.Text(contract.terms, style: pw.TextStyle(fontSize: 9)),
                   ],
                 ),
               ),
 
-              pw.SizedBox(height: 30),
+              pw.SizedBox(height: 25),
 
               // Signatures
-              pw.Text('SIGNATURES', style: sectionTitleStyle),
-              pw.SizedBox(height: 15),
+              pw.Text('SIGNATURES & ACKNOWLEDGEMENT', style: sectionTitleStyle),
+              pw.SizedBox(height: 10),
 
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
+                  // Lender Signature Box
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Container(
                         width: 200,
-                        height: 40,
+                        height: 50,
                         decoration: pw.BoxDecoration(
-                          border: pw.Border(
-                            bottom: pw.BorderSide(color: PdfColors.black),
-                          ),
+                          border: pw.Border(bottom: pw.BorderSide(color: PdfColors.black)),
                         ),
+                        child: lenderSigImage != null
+                            ? pw.Center(child: pw.Image(lenderSigImage, height: 45))
+                            : null,
                       ),
                       pw.SizedBox(height: 5),
-                      pw.Text(
-                        'Lender Signature',
-                        style: pw.TextStyle(fontSize: 10),
-                      ),
+                      pw.Text('Lender Signature', style: pw.TextStyle(fontSize: 10)),
+                      pw.SizedBox(height: 3),
+                      pw.Text(contract.companyName, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                       pw.SizedBox(height: 3),
                       pw.Text(
-                        contract.companyName,
-                        style: pw.TextStyle(
-                          fontSize: 10,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                      pw.SizedBox(height: 3),
-                      pw.Text(
-                        'Date: _________________',
-                        style: pw.TextStyle(fontSize: 10),
+                        'Date: ${contract.signatureDate != null ? dateFormat.format(contract.signatureDate!) : "_________________"}',
+                        style: pw.TextStyle(fontSize: 9),
                       ),
                     ],
                   ),
+                  // Borrower Signature Box
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Container(
                         width: 200,
-                        height: 40,
-                        decoration: pw.BoxDecoration(
-                          border: pw.Border(
-                            bottom: pw.BorderSide(color: PdfColors.black),
-                          ),
+                        height: 50,
+                        decoration: const pw.BoxDecoration(
+                          border: pw.Border(bottom: pw.BorderSide(color: PdfColors.black)),
                         ),
                       ),
                       pw.SizedBox(height: 5),
-                      pw.Text(
-                        'Borrower Signature',
-                        style: pw.TextStyle(fontSize: 10),
-                      ),
+                      pw.Text('Borrower Signature', style: pw.TextStyle(fontSize: 10)),
                       pw.SizedBox(height: 3),
-                      pw.Text(
-                        contract.person.name,
-                        style: pw.TextStyle(
-                          fontSize: 10,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                      pw.Text(
-                        'NRC: ${contract.person.nrc}',
-                        style: pw.TextStyle(fontSize: 10),
-                      ),
+                      pw.Text(contract.person.name, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                       pw.SizedBox(height: 3),
-                      pw.Text(
-                        'Date: _________________',
-                        style: pw.TextStyle(fontSize: 10),
-                      ),
+                      pw.Text('Date: _________________', style: pw.TextStyle(fontSize: 9)),
                     ],
                   ),
                 ],
@@ -332,11 +260,7 @@ class PdfGenerator {
                 alignment: pw.Alignment.center,
                 child: pw.Text(
                   'This is a legally binding document. Keep it for your records.',
-                  style: pw.TextStyle(
-                    fontSize: 9,
-                    color: PdfColors.grey600,
-                    fontStyle: pw.FontStyle.italic,
-                  ),
+                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600, fontStyle: pw.FontStyle.italic),
                 ),
               ),
             ],
@@ -363,17 +287,13 @@ class PdfGenerator {
             width: 120,
             child: pw.Text(
               label,
-              style:
-                  labelStyle ??
-                  pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+              style: labelStyle ?? pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
             ),
           ),
           pw.Expanded(
             child: pw.Text(
               value,
-              style:
-                  valueStyle ??
-                  pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+              style: valueStyle ?? pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
             ),
           ),
         ],

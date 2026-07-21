@@ -73,19 +73,20 @@ class _DashboardPageState extends State<DashboardPage> {
 
     for (final p in people) {
       totalLoaned += p.amount;
-      // Calculate the total amount at the loan's due date (principal + fixed per-term interest)
-      final termTotal = p.calculateAmountDue(p.dueDate);
-      final termInterest = termTotal - p.amount;
+      final loanInterest = p.amount * (p.interestRate / 100);
+
       if (!p.isPaid) {
-        totalInterest += termInterest;
-        totalOutstanding += termTotal;
-        if (p.dueDate.isBefore(DateTime.now())) {
+        totalInterest += loanInterest;
+        totalOutstanding += p.calculateAmountDue(DateTime.now());
+
+        final todayMidnight = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+        final dueMidnight = DateTime(p.dueDate.year, p.dueDate.month, p.dueDate.day);
+        if (dueMidnight.isBefore(todayMidnight)) {
           overdue++;
-          overdueAmount += termTotal;
+          overdueAmount += p.calculateAmountDue(DateTime.now());
         }
       } else {
-        // Sum interest from loans that have been marked paid
-        interestEarned += termInterest;
+        interestEarned += loanInterest;
       }
     }
 

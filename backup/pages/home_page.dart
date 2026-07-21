@@ -60,6 +60,8 @@ class HomePageState extends State<HomePage>
     );
 
     if (person != null && mounted) {
+      final provider = Provider.of<LoanProvider>(context, listen: false);
+      provider.addPerson(person);
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
         SnackBar(content: Text('Added loan for "${person.name}"')),
@@ -85,15 +87,8 @@ class HomePageState extends State<HomePage>
         }).toList();
 
         final now = DateTime.now();
-        final nowMidnight = DateTime(now.year, now.month, now.day);
-        final active = filtered.where((p) {
-          final dueMidnight = DateTime(p.dueDate.year, p.dueDate.month, p.dueDate.day);
-          return !p.isPaid && dueMidnight.difference(nowMidnight).inDays >= 0;
-        }).toList();
-        final overdue = filtered.where((p) {
-          final dueMidnight = DateTime(p.dueDate.year, p.dueDate.month, p.dueDate.day);
-          return !p.isPaid && dueMidnight.difference(nowMidnight).inDays < 0;
-        }).toList();
+        final active = filtered.where((p) => !p.isPaid && p.dueDate.difference(now).inDays >= 0).toList();
+        final overdue = filtered.where((p) => !p.isPaid && p.dueDate.difference(now).inDays < 0).toList();
         final paid = filtered.where((p) => p.isPaid).toList();
 
         return Scaffold(
@@ -104,7 +99,7 @@ class HomePageState extends State<HomePage>
               size: 24,
             ),
             title: const Text(
-              'Loans Tracker',
+              'Loans Tracker Pro',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
               ),

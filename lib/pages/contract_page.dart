@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:printing/printing.dart';
@@ -12,6 +12,8 @@ import '../models/contract.dart';
 import '../utils/loan_provider.dart';
 import '../utils/pdf_generator.dart';
 import 'contract_manual_page.dart';
+import 'signature_pad_page.dart';
+import '../theme/theme_controller.dart';
 
 class ContractPage extends StatefulWidget {
   const ContractPage({super.key});
@@ -23,16 +25,23 @@ class ContractPage extends StatefulWidget {
 class ContractPageState extends State<ContractPage> {
   final _formKey = GlobalKey<FormState>();
   final _companyNameController = TextEditingController();
+  final _companyPhoneCodeController = TextEditingController(text: '+26');
   final _companyPhoneController = TextEditingController();
   final _companyAddressController = TextEditingController();
   final _termsController = TextEditingController();
   Person? _person;
+  Contract? _existingContract;
   bool _isGenerating = false;
+
+  // Digital signatures
+  Uint8List? _lenderSignature;
+  DateTime _signatureDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _companyNameController.text = 'Your Company Name';
+    _companyPhoneCodeController.text = '+26';
     _companyPhoneController.text = '';
     _companyAddressController.text = '';
     // Terms are intentionally minimal; contract text is generated for clarity in the PDF
@@ -43,18 +52,45 @@ class ContractPageState extends State<ContractPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Get the person object passed as an argument
+    // Get the person or contract object passed as an argument
     final args = ModalRoute.of(context)?.settings.arguments;
-    if (args != null && args is Person) {
-      _person = args;
+    if (args != null) {
+      if (args is Person) {
+        _person = args;
+        _existingContract = null;
+        _companyPhoneCodeController.text = '+26';
+        _companyPhoneController.text = '';
+        _signatureDate = DateTime.now();
+      } else if (args is Contract) {
+        _existingContract = args;
+        _person = args.person;
+        _companyNameController.text = args.companyName;
+        
+        String initialPhone = args.lenderPhone;
+        String parsedCode = '+26';
+        if (initialPhone.startsWith('+')) {
+          final match = RegExp(r'^\+\d{1,2}').firstMatch(initialPhone);
+          if (match != null) {
+            parsedCode = match.group(0)!;
+            initialPhone = initialPhone.substring(parsedCode.length).trim();
+          }
+        }
+        _companyPhoneCodeController.text = parsedCode;
+        _companyPhoneController.text = initialPhone;
+        _companyAddressController.text = args.lenderAddress;
+        _termsController.text = args.terms;
+        _signatureDate = args.signatureDate ?? DateTime.now();
+      }
     } else {
-      _person = null; // show contract tab landing (list + contract-only)
+      _person = null;
+      _existingContract = null;
     }
   }
 
   @override
   void dispose() {
     _companyNameController.dispose();
+    _companyPhoneCodeController.dispose();
     _companyPhoneController.dispose();
     _companyAddressController.dispose();
     _termsController.dispose();
@@ -68,24 +104,38 @@ class ContractPageState extends State<ContractPage> {
       });
 
       try {
+        String code = _companyPhoneCodeController.text.trim();
+        if (code.isNotEmpty && !code.startsWith('+')) {
+          code = '+$code';
+        }
+        String cleanPhone = _companyPhoneController.text.trim();
+        if (cleanPhone.startsWith('0')) {
+          cleanPhone = cleanPhone.substring(1);
+        }
+        final fullPhone = cleanPhone.isEmpty ? '' : '$code$cleanPhone';
+
         final contract = Contract(
-          id: const Uuid().v4(),
+          id: _existingContract?.id ?? const Uuid().v4(),
           person: _person!,
           companyName: _companyNameController.text.trim(),
-          lenderPhone: _companyPhoneController.text.trim(),
+          lenderPhone: fullPhone,
           lenderAddress: _companyAddressController.text.trim(),
-          creationDate: DateTime.now(),
+          creationDate: _existingContract?.creationDate ?? DateTime.now(),
           terms: _termsController.text.trim(),
+          signatureDate: _signatureDate,
         );
 
-        // Save the contract
+        // Save/Update the contract
         await Provider.of<LoanProvider>(
           context,
           listen: false,
-        ).addContract(contract);
+        ).updateContract(contract);
 
         // Generate PDF
-        final pdfBytes = await PdfGenerator.generateContract(contract);
+        final pdfBytes = await PdfGenerator.generateContract(
+          contract,
+          lenderSignature: _lenderSignature,
+        );
 
         if (mounted) {
           setState(() {
@@ -329,60 +379,262 @@ class ContractPageState extends State<ContractPage> {
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(symbol: 'K ');
+    final themeCtrl = Provider.of<ThemeController>(context);
+    final accent = themeCtrl.accent;
     // If no person supplied, show list of borrowers and offer contract-only form
     if (_person == null) {
-      return Scaffold(
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      return DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          appBar: AppBar(
+            title: const Text('Contracts'),
+            centerTitle: true,
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            bottom: TabBar(
+              indicatorColor: accent,
+              labelColor: accent,
+              unselectedLabelColor: Colors.grey,
+              tabs: const [
+                Tab(text: 'Generate'),
+                Tab(text: 'History'),
+              ],
+            ),
+          ),
+          body: TabBarView(
             children: [
-              const Text(
-                'Contracts',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ContractManualPage(),
-                  ),
+              // Tab 1: Generate
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ContractManualPage(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Create Contract (manual)'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Existing Borrowers',
+                      style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Consumer<LoanProvider>(
+                        builder: (context, provider, child) {
+                          final people = provider.people.where((p) => !p.isPaid).toList();
+                          if (people.isEmpty) {
+                            return Center(
+                              child: Text(
+                                'No borrowers available',
+                                style: TextStyle(color: Colors.grey[500]),
+                              ),
+                            );
+                          }
+                          return ListView.builder(
+                            itemCount: people.length,
+                            itemBuilder: (context, index) {
+                              final p = people[index];
+                              return Card(
+                                margin: const EdgeInsets.symmetric(vertical: 6),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 1,
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: accent.withValues(alpha: 0.1),
+                                    child: Icon(Icons.person_outline_rounded, color: accent),
+                                  ),
+                                  title: Text(
+                                    p.name,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Text(p.phone),
+                                  trailing: ElevatedButton(
+                                    onPressed: () => Navigator.pushNamed(
+                                      context,
+                                      '/contract',
+                                      arguments: p,
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: accent,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text('Generate'),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                icon: const Icon(Icons.add),
-                label: const Text('Create Contract (manual)'),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Existing Borrowers',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
+
+              // Tab 2: History
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Consumer<LoanProvider>(
                   builder: (context, provider, child) {
-                    final people = provider.people;
-                    if (people.isEmpty) {
+                    final contracts = provider.contracts;
+                    if (contracts.isEmpty) {
                       return Center(
-                        child: Text(
-                          'No borrowers available',
-                          style: TextStyle(color: Colors.grey[500]),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.history_rounded,
+                              size: 64,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No generated contracts yet',
+                              style: TextStyle(color: Colors.grey[500], fontSize: 16),
+                            ),
+                          ],
                         ),
                       );
                     }
+                    // Sort latest first
+                    final sortedContracts = List<Contract>.from(contracts)
+                      ..sort((a, b) => b.creationDate.compareTo(a.creationDate));
+
                     return ListView.builder(
-                      itemCount: people.length,
+                      itemCount: sortedContracts.length,
                       itemBuilder: (context, index) {
-                        final p = people[index];
-                        return ListTile(
-                          title: Text(p.name),
-                          subtitle: Text(p.phone),
-                          trailing: ElevatedButton(
-                            child: const Text('Generate'),
-                            onPressed: () => Navigator.pushNamed(
-                              context,
-                              '/contract',
-                              arguments: p,
+                        final contract = sortedContracts[index];
+                        final p = contract.person;
+                        final dateStr = DateFormat('MMM d, yyyy h:mm a').format(contract.creationDate);
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 1,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: accent.withValues(alpha: 0.1),
+                                  child: Icon(Icons.description_rounded, color: accent),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'K ${p.amount.toStringAsFixed(2)} • ${p.interestRate}% Interest',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        dateStr,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[500],
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent),
+                                  tooltip: 'Edit & View PDF',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/contract',
+                                      arguments: contract,
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 16),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                                  tooltip: 'Delete',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Delete Contract?'),
+                                        content: const Text(
+                                          'Are you sure you want to delete this contract from history? This action cannot be undone.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('CANCEL'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              provider.deleteContract(contract.id);
+                                              Navigator.pop(context);
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('Contract deleted successfully'),
+                                                  backgroundColor: Colors.blue,
+                                                ),
+                                              );
+                                            },
+                                            child: const Text('DELETE', style: TextStyle(color: Colors.red)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -401,7 +653,9 @@ class ContractPageState extends State<ContractPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Contract'),
-        elevation: 2,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
@@ -451,7 +705,7 @@ class ContractPageState extends State<ContractPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E3A5F),
+                        color: accent,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -480,7 +734,9 @@ class ContractPageState extends State<ContractPage> {
                       elevation: 4,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.grey[800]!),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -489,9 +745,9 @@ class ContractPageState extends State<ContractPage> {
                           children: [
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.person,
-                                  color: Color(0xFF64B5F6),
+                                  color: accent,
                                 ),
                                 const SizedBox(width: 8),
                                 const Text(
@@ -510,7 +766,7 @@ class ContractPageState extends State<ContractPage> {
                                   decoration: BoxDecoration(
                                     color: _person!.isPaid
                                         ? Colors.green
-                                        : const Color(0xFF1E3A5F),
+                                        : accent,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -560,10 +816,10 @@ class ContractPageState extends State<ContractPage> {
                               currencyFormat.format(
                                 _person!.calculateAmountDue(_person!.dueDate),
                               ),
-                              valueStyle: const TextStyle(
+                              valueStyle: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18,
-                                color: Color(0xFF64B5F6),
+                                color: accent,
                               ),
                             ),
                           ],
@@ -573,11 +829,11 @@ class ContractPageState extends State<ContractPage> {
                     const SizedBox(height: 24),
 
                     // Lender Information
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.business, color: Color(0xFF64B5F6)),
-                        SizedBox(width: 8),
-                        Text(
+                        Icon(Icons.business, color: accent),
+                        const SizedBox(width: 8),
+                        const Text(
                           'Lender Information',
                           style: TextStyle(
                             fontSize: 18,
@@ -607,19 +863,52 @@ class ContractPageState extends State<ContractPage> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _companyPhoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        labelText: 'Lender Phone',
-                        prefixIcon: const Icon(Icons.phone),
-                        hintText: 'Enter lender phone number (optional)',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 105,
+                          child: TextFormField(
+                            controller: _companyPhoneCodeController,
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(3),
+                              FilteringTextInputFormatter.allow(RegExp(r'^\+?\d*')),
+                            ],
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Code',
+                              filled: true,
+                              fillColor: const Color.fromRGBO(66, 66, 66, 0.3),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                            ),
+                          ),
                         ),
-                        filled: true,
-                        fillColor: const Color.fromRGBO(66, 66, 66, 0.3),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _companyPhoneController,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              labelText: 'Lender Phone',
+                              prefixIcon: const Icon(Icons.phone),
+                              hintText: 'Phone number (optional)',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              filled: true,
+                              fillColor: const Color.fromRGBO(66, 66, 66, 0.3),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -656,6 +945,96 @@ class ContractPageState extends State<ContractPage> {
                     ),
                     const SizedBox(height: 24),
 
+                    // Digital Signatures section
+                    Row(
+                      children: [
+                        Icon(Icons.edit_document, color: accent),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Digital Signatures',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: SizedBox(
+                        width: 240,
+                        child: _buildSignatureBox(
+                          title: 'Lender Signature',
+                          signature: _lenderSignature,
+                          onTap: () async {
+                            final bytes = await Navigator.push<Uint8List>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SignaturePadPage(title: 'Lender Signature'),
+                              ),
+                            );
+                            if (bytes != null) {
+                              setState(() => _lenderSignature = bytes);
+                            }
+                          },
+                          onClear: () {
+                            setState(() => _lenderSignature = null);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 1,
+                      child: InkWell(
+                        onTap: () async {
+                          final d = await showDatePicker(
+                            context: context,
+                            initialDate: _signatureDate,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (d != null) {
+                            setState(() => _signatureDate = d);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.calendar_today, size: 18, color: accent),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Signature Date',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                DateFormat('MMMM d, yyyy').format(_signatureDate),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
                     // Note: Terms are kept minimal in the UI; generated PDF contains the official language.
                     const SizedBox(height: 16),
 
@@ -674,7 +1053,8 @@ class ContractPageState extends State<ContractPage> {
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E3A5F),
+                          backgroundColor: accent,
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -689,6 +1069,84 @@ class ContractPageState extends State<ContractPage> {
     );
   }
 
+  Widget _buildSignatureBox({
+    required String title,
+    required Uint8List? signature,
+    required VoidCallback onTap,
+    required VoidCallback onClear,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = Provider.of<ThemeController>(context, listen: false).accent;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          height: 100,
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: signature != null ? accent : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+              width: 1.5,
+            ),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: signature != null
+                  ? Stack(
+                      children: [
+                        Center(
+                          child: Container(
+                            color: Colors.white,
+                            padding: const EdgeInsets.all(8),
+                            child: Image.memory(signature, fit: BoxFit.contain),
+                          ),
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: onClear,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close, size: 14, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.edit_rounded, color: accent.withValues(alpha: 0.7), size: 24),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Tap to sign',
+                            style: TextStyle(fontSize: 12, color: accent, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildInfoRow(String label, String value, {TextStyle? valueStyle}) {
     return Padding(

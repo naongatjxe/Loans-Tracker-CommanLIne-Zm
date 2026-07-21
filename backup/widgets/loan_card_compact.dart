@@ -27,9 +27,7 @@ class LoanCardCompact extends StatelessWidget {
 
     // Calculate status information
     final now = DateTime.now();
-    final dueMidnight = DateTime(loan.dueDate.year, loan.dueDate.month, loan.dueDate.day);
-    final nowMidnight = DateTime(now.year, now.month, now.day);
-    final daysLeft = dueMidnight.difference(nowMidnight).inDays;
+    final daysLeft = loan.dueDate.difference(now).inDays;
     final isOverdue = daysLeft < 0;
     final isDueToday = daysLeft == 0;
     final isDueSoon = daysLeft > 0 && daysLeft <= 7;

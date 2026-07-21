@@ -1,4 +1,4 @@
-import '../utils/interest_calculator.dart';
+import 'repayment.dart';
 
 class Person {
   final String id;
@@ -12,6 +12,13 @@ class Person {
   final DateTime dueDate;
   final bool isPaid;
 
+  // Advanced Feature Fields
+  final List<Repayment> repayments;
+  final String interestType; // 'flat', 'simple', 'compound'
+  final String interestPeriod; // 'none', 'daily', 'weekly', 'monthly', 'yearly'
+  final double lateFeeRate; // daily penalty percentage
+  final double lateFeeFlat; // flat late fee
+
   Person({
     required this.id,
     required this.name,
@@ -23,6 +30,11 @@ class Person {
     required this.loanDate,
     required this.dueDate,
     this.isPaid = false,
+    this.repayments = const [],
+    this.interestType = 'flat',
+    this.interestPeriod = 'none',
+    this.lateFeeRate = 0.0,
+    this.lateFeeFlat = 0.0,
   });
 
   Person copyWith({
@@ -36,6 +48,11 @@ class Person {
     DateTime? loanDate,
     DateTime? dueDate,
     bool? isPaid,
+    List<Repayment>? repayments,
+    String? interestType,
+    String? interestPeriod,
+    double? lateFeeRate,
+    double? lateFeeFlat,
   }) {
     return Person(
       id: id ?? this.id,
@@ -48,6 +65,11 @@ class Person {
       loanDate: loanDate ?? this.loanDate,
       dueDate: dueDate ?? this.dueDate,
       isPaid: isPaid ?? this.isPaid,
+      repayments: repayments ?? this.repayments,
+      interestType: interestType ?? this.interestType,
+      interestPeriod: interestPeriod ?? this.interestPeriod,
+      lateFeeRate: lateFeeRate ?? this.lateFeeRate,
+      lateFeeFlat: lateFeeFlat ?? this.lateFeeFlat,
     );
   }
 
@@ -63,45 +85,91 @@ class Person {
       'loanDate': loanDate.millisecondsSinceEpoch,
       'dueDate': dueDate.millisecondsSinceEpoch,
       'isPaid': isPaid,
+      'repayments': repayments.map((r) => r.toMap()).toList(),
+      'interestType': interestType,
+      'interestPeriod': interestPeriod,
+      'lateFeeRate': lateFeeRate,
+      'lateFeeFlat': lateFeeFlat,
     };
   }
 
   factory Person.fromMap(Map<String, dynamic> map) {
+    var rawRepayments = map['repayments'] as List<dynamic>?;
+    List<Repayment> repList = rawRepayments != null
+        ? rawRepayments.map((r) => Repayment.fromMap(r as Map<String, dynamic>)).toList()
+        : [];
+
     return Person(
-      id: map['id'],
-      name: map['name'],
-      phone: map['phone'],
-      nrc: map['nrc'],
-      workplace: map['workplace'],
-      amount: map['amount'],
-      interestRate: map['interestRate'],
+      id: map['id'] ?? '',
+      name: map['name'] ?? '',
+      phone: map['phone'] ?? '',
+      nrc: map['nrc'] ?? '',
+      workplace: map['workplace'] ?? '',
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      interestRate: (map['interestRate'] as num?)?.toDouble() ?? 0.0,
       loanDate: DateTime.fromMillisecondsSinceEpoch(map['loanDate']),
       dueDate: DateTime.fromMillisecondsSinceEpoch(map['dueDate']),
       isPaid: map['isPaid'] ?? false,
+      repayments: repList,
+      interestType: map['interestType'] ?? 'flat',
+      interestPeriod: map['interestPeriod'] ?? 'none',
+      lateFeeRate: (map['lateFeeRate'] as num?)?.toDouble() ?? 0.0,
+      lateFeeFlat: (map['lateFeeFlat'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
-  double calculateTotalAmount() {
-    // Calculate the total amount to be paid including fixed per-term interest.
-    // Interest is applied as: interest = amount * (interestRate/100),
-    // then total = amount + interest (previous behaviour).
-    return totalForTerm();
+  double getPaidRepaymentsSum() {
+    return repayments.fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  double calculatePeriods(DateTime currentDate) {
+    final diff = currentDate.difference(loanDate).inDays;
+    if (diff <= 0) return 0.0;
+
+    switch (interestPeriod) {
+      case 'daily':
+        return diff.toDouble();
+      case 'weekly':
+        return diff / 7.0;
+      case 'monthly':
+        return diff / 30.0;
+      case 'yearly':
+        return diff / 365.0;
+      default:
+        return 1.0;
+    }
+  }
+
+  double calculateStandardInterest(DateTime currentDate) {
+    return amount * (interestRate / 100);
+  }
+
+  double calculateLateFees(DateTime currentDate) {
+    return 0.0;
+  }
+
+  double calculateTotalExpectedDue(DateTime currentDate) {
+    final interest = calculateStandardInterest(currentDate);
+    final lateFees = calculateLateFees(currentDate);
+    return amount + interest + lateFees;
   }
 
   double calculateAmountDue(DateTime currentDate) {
-    // Return the total amount due for the loan term (fixed per-term interest).
-    // The due date is accepted for API compatibility but not used because the
-    // interest is not time-pro-rated.
-    return totalForTerm();
+    if (isPaid) return 0.0;
+    final totalExpected = calculateTotalExpectedDue(currentDate);
+    final remaining = totalExpected - getPaidRepaymentsSum();
+    return remaining < 0 ? 0.0 : remaining;
   }
 
-  /// Interest for the loan (simple fixed percentage, not time-dependent).
+  double calculateTotalAmount() {
+    return calculateTotalExpectedDue(dueDate);
+  }
+
   double interestForTerm() {
-    return InterestCalculator.calculateInterestCharge(amount, interestRate);
+    return calculateStandardInterest(dueDate);
   }
 
-  /// Total amount for the loan (principal + fixed interest).
   double totalForTerm() {
-    return InterestCalculator.calculateTotalDue(amount, interestRate);
+    return calculateTotalExpectedDue(dueDate);
   }
 }

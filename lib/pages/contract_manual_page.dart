@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../models/person.dart';
 import '../utils/formatters.dart';
@@ -17,48 +18,88 @@ class _ContractManualPageState extends State<ContractManualPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _nrcCtrl = TextEditingController();
+  final _countryCodeCtrl = TextEditingController(text: '+26');
   final _phoneCtrl = TextEditingController();
   final _workplaceCtrl = TextEditingController();
-  final _companyNameCtrl = TextEditingController();
-  final _lenderPhoneCtrl = TextEditingController();
-  final _lenderAddressCtrl = TextEditingController();
-  final _termsCtrl = TextEditingController();
+  final _amountCtrl = TextEditingController();
+  final _interestRateCtrl = TextEditingController(text: '8');
+  late DateTime _loanDate;
+  late DateTime _dueDate;
 
   @override
   void initState() {
     super.initState();
-    _companyNameCtrl.text = 'Your Company Name';
-    _termsCtrl.text =
-        'This Agreement constitutes the entire understanding between the parties.';
+    _loanDate = DateTime.now();
+    _dueDate = DateTime.now().add(const Duration(days: 7));
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _nrcCtrl.dispose();
+    _countryCodeCtrl.dispose();
     _phoneCtrl.dispose();
     _workplaceCtrl.dispose();
-    _companyNameCtrl.dispose();
-    _lenderPhoneCtrl.dispose();
-    _lenderAddressCtrl.dispose();
-    _termsCtrl.dispose();
+    _amountCtrl.dispose();
+    _interestRateCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickLoanDate() async {
+    final d = await showDatePicker(
+      context: context,
+      initialDate: _loanDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (d != null) {
+      setState(() {
+        _loanDate = d;
+        if (_dueDate.isBefore(_loanDate)) {
+          _dueDate = _loanDate.add(const Duration(days: 7));
+        }
+      });
+    }
+  }
+
+  Future<void> _pickDueDate() async {
+    final initial = _dueDate.isBefore(_loanDate) ? _loanDate : _dueDate;
+    final d = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: _loanDate,
+      lastDate: DateTime(2100),
+    );
+    if (d != null) setState(() => _dueDate = d);
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
+
+    String cleanPhone = _phoneCtrl.text.trim();
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = cleanPhone.substring(1);
+    }
+    String fullPhone = '';
+    if (cleanPhone.isNotEmpty) {
+      String code = _countryCodeCtrl.text.trim();
+      if (code.isNotEmpty && !code.startsWith('+')) {
+        code = '+$code';
+      }
+      fullPhone = '$code$cleanPhone';
+    }
 
     // Create a temporary borrower representation for contract preview
     final person = Person(
       id: const Uuid().v4(),
       name: _nameCtrl.text.trim(),
       nrc: _nrcCtrl.text.trim(),
-      phone: _phoneCtrl.text.trim(),
+      phone: fullPhone,
       workplace: _workplaceCtrl.text.trim(),
-      amount: 0.0,
-      interestRate: 0.0,
-      loanDate: DateTime.now(),
-      dueDate: DateTime.now().add(const Duration(days: 7)),
+      amount: double.tryParse(_amountCtrl.text.trim()) ?? 0.0,
+      interestRate: double.tryParse(_interestRateCtrl.text.trim()) ?? 0.0,
+      loanDate: _loanDate,
+      dueDate: _dueDate,
     );
 
     // Replace current route so going back from contract preview screen
@@ -141,12 +182,105 @@ class _ContractManualPageState extends State<ContractManualPage> {
               ),
               const SizedBox(height: 16),
 
-              _buildModernTextField(
-                controller: _phoneCtrl,
-                label: 'Phone Number',
-                icon: Icons.phone_rounded,
-                keyboardType: TextInputType.phone,
-                delay: 200,
+              TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutCubic,
+                tween: Tween(begin: 0.0, end: 1.0),
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(0, 30 * (1 - value)),
+                    child: Opacity(
+                      opacity: value,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 105,
+                            child: TextFormField(
+                              controller: _countryCodeCtrl,
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                LengthLimitingTextInputFormatter(3),
+                                FilteringTextInputFormatter.allow(RegExp(r'^\+?\d*')),
+                              ],
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                              decoration: InputDecoration(
+                                labelText: 'Code',
+                                filled: true,
+                                fillColor: Theme.of(context).colorScheme.surface,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: accent,
+                                    width: 2,
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: TextFormField(
+                                controller: _phoneCtrl,
+                                keyboardType: TextInputType.phone,
+                                decoration: InputDecoration(
+                                  labelText: 'Phone Number',
+                                  prefixIcon: const Icon(Icons.phone_rounded),
+                                  filled: true,
+                                  fillColor: Theme.of(context).colorScheme.surface,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: accent,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
@@ -158,55 +292,83 @@ class _ContractManualPageState extends State<ContractManualPage> {
               ),
               const SizedBox(height: 32),
 
-              // Lender Info Section
+              // Loan Details Section
               _buildSectionHeader(
-                icon: Icons.business_rounded,
-                title: 'Lender Details',
-                delay: 300,
+                icon: Icons.account_balance_wallet_rounded,
+                title: 'Loan Details',
+                delay: 280,
               ),
               const SizedBox(height: 16),
 
-              _buildModernTextField(
-                controller: _companyNameCtrl,
-                label: 'Company / Lender Name',
-                icon: Icons.business_center_rounded,
-                validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
-                delay: 350,
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildModernTextField(
+                      controller: _amountCtrl,
+                      label: 'Amount (K)',
+                      icon: Icons.payments_rounded,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d+\.?\d{0,2}'),
+                        ),
+                      ],
+                      validator: (v) {
+                        if (v?.trim().isEmpty == true) return 'Required';
+                        final amt = double.tryParse(v!);
+                        if (amt == null || amt <= 0) return 'Invalid amount';
+                        return null;
+                      },
+                      delay: 300,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildModernTextField(
+                      controller: _interestRateCtrl,
+                      label: 'Interest Rate (%)',
+                      icon: Icons.trending_up_rounded,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d+\.?\d{0,2}'),
+                        ),
+                      ],
+                      validator: (v) {
+                        if (v?.trim().isEmpty == true) return 'Required';
+                        final rate = double.tryParse(v!);
+                        if (rate == null || rate < 0) return 'Invalid rate';
+                        return null;
+                      },
+                      delay: 320,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-              _buildModernTextField(
-                controller: _lenderPhoneCtrl,
-                label: 'Lender Phone',
-                icon: Icons.phone_android_rounded,
-                keyboardType: TextInputType.phone,
-                delay: 400,
-              ),
-              const SizedBox(height: 16),
-
-              _buildModernTextField(
-                controller: _lenderAddressCtrl,
-                label: 'Lender Address',
-                icon: Icons.location_on_rounded,
-                maxLines: 2,
-                delay: 450,
-              ),
-              const SizedBox(height: 32),
-
-              // Contract Terms Section
-              _buildSectionHeader(
-                icon: Icons.description_rounded,
-                title: 'Contract Terms',
-                delay: 500,
-              ),
-              const SizedBox(height: 16),
-
-              _buildModernTextField(
-                controller: _termsCtrl,
-                label: 'Terms and Conditions',
-                icon: Icons.gavel_rounded,
-                maxLines: 4,
-                delay: 550,
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDateSelector(
+                      label: 'Loan Date',
+                      date: _loanDate,
+                      onTap: _pickLoanDate,
+                      icon: Icons.calendar_today_rounded,
+                      delay: 340,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildDateSelector(
+                      label: 'Due Date',
+                      date: _dueDate,
+                      onTap: _pickDueDate,
+                      icon: Icons.event_rounded,
+                      delay: 360,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 40),
             ],
@@ -336,6 +498,94 @@ class _ContractManualPageState extends State<ContractManualPage> {
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 16,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDateSelector({
+    required String label,
+    required DateTime date,
+    required VoidCallback onTap,
+    required IconData icon,
+    required int delay,
+  }) {
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 400 + delay),
+      curve: Curves.easeOutCubic,
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 30 * (1 - value)),
+          child: Opacity(
+            opacity: value,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: onTap,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outline.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              icon,
+                              color: Provider.of<ThemeController>(
+                                context,
+                                listen: false,
+                              ).accent,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          DateFormat('MMM d, yyyy').format(date),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

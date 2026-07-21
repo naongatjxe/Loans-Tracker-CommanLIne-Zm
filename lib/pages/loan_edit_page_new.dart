@@ -11,7 +11,8 @@ import '../utils/formatters.dart';
 
 class LoanEditPage extends StatefulWidget {
   final Person? person;
-  const LoanEditPage({super.key, this.person});
+  final bool isReborrow;
+  const LoanEditPage({super.key, this.person, this.isReborrow = false});
 
   @override
   State<LoanEditPage> createState() => _LoanEditPageState();
@@ -21,14 +22,16 @@ class _LoanEditPageState extends State<LoanEditPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _nrcCtrl;
+  late final TextEditingController _countryCodeCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _workplaceCtrl;
   late final TextEditingController _amountCtrl;
   late final TextEditingController _interestCtrl;
+
   late DateTime _loanDate;
   late DateTime _dueDate;
 
-  bool get isEditing => widget.person != null;
+  bool get isEditing => widget.person != null && !widget.isReborrow;
 
   @override
   void initState() {
@@ -36,7 +39,19 @@ class _LoanEditPageState extends State<LoanEditPage> {
     final p = widget.person;
     _nameCtrl = TextEditingController(text: p?.name ?? '');
     _nrcCtrl = TextEditingController(text: p?.nrc ?? '');
-    _phoneCtrl = TextEditingController(text: p?.phone ?? '');
+
+    String initialPhone = p?.phone ?? '';
+    String parsedCode = '+26';
+    if (initialPhone.startsWith('+')) {
+      final match = RegExp(r'^\+\d{1,2}').firstMatch(initialPhone);
+      if (match != null) {
+        parsedCode = match.group(0)!;
+        initialPhone = initialPhone.substring(parsedCode.length).trim();
+      }
+    }
+    _countryCodeCtrl = TextEditingController(text: parsedCode);
+    _phoneCtrl = TextEditingController(text: initialPhone);
+
     _workplaceCtrl = TextEditingController(text: p?.workplace ?? '');
     _amountCtrl = TextEditingController(
       text: p != null ? p.amount.toString() : '',
@@ -44,14 +59,19 @@ class _LoanEditPageState extends State<LoanEditPage> {
     _interestCtrl = TextEditingController(
       text: p != null ? p.interestRate.toString() : '8',
     );
-    _loanDate = p?.loanDate ?? DateTime.now();
-    _dueDate = p?.dueDate ?? DateTime.now().add(const Duration(days: 7));
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    _loanDate = widget.isReborrow ? today : (p?.loanDate ?? today);
+    _dueDate = widget.isReborrow
+        ? today.add(const Duration(days: 7))
+        : (p?.dueDate ?? today.add(const Duration(days: 7)));
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _nrcCtrl.dispose();
+    _countryCodeCtrl.dispose();
     _phoneCtrl.dispose();
     _workplaceCtrl.dispose();
     _amountCtrl.dispose();
@@ -66,13 +86,21 @@ class _LoanEditPageState extends State<LoanEditPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (d != null) setState(() => _loanDate = d);
+    if (d != null) {
+      setState(() {
+        _loanDate = d;
+        if (_dueDate.isBefore(_loanDate)) {
+          _dueDate = _loanDate.add(const Duration(days: 7));
+        }
+      });
+    }
   }
 
   Future<void> _pickDueDate() async {
+    final initial = _dueDate.isBefore(_loanDate) ? _loanDate : _dueDate;
     final d = await showDatePicker(
       context: context,
-      initialDate: _dueDate,
+      initialDate: initial,
       firstDate: _loanDate,
       lastDate: DateTime(2100),
     );
@@ -83,21 +111,44 @@ class _LoanEditPageState extends State<LoanEditPage> {
     if (!_formKey.currentState!.validate()) return;
 
     final provider = Provider.of<LoanProvider>(context, listen: false);
+
+    String code = _countryCodeCtrl.text.trim();
+    if (code.isNotEmpty && !code.startsWith('+')) {
+      code = '+$code';
+    }
+
+    String cleanPhone = _phoneCtrl.text.trim();
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = cleanPhone.substring(1);
+    }
+    final fullPhone = '$code$cleanPhone';
+
     final person = Person(
-      id: widget.person?.id ?? const Uuid().v4(),
+      id: (widget.person != null && !widget.isReborrow)
+          ? widget.person!.id
+          : const Uuid().v4(),
       name: _nameCtrl.text.trim(),
       nrc: _nrcCtrl.text.trim(),
-      phone: _phoneCtrl.text.trim(),
+      phone: fullPhone,
       workplace: _workplaceCtrl.text.trim(),
       amount: double.parse(_amountCtrl.text.trim()),
       interestRate: double.parse(_interestCtrl.text.trim()),
       loanDate: _loanDate,
       dueDate: _dueDate,
-      isPaid: widget.person?.isPaid ?? false,
+      isPaid: widget.isReborrow ? false : (widget.person?.isPaid ?? false),
+      repayments: (widget.person != null && !widget.isReborrow)
+          ? widget.person!.repayments
+          : const [],
+      interestType: 'flat',
+      interestPeriod: 'none',
+      lateFeeFlat: 0.0,
+      lateFeeRate: 0.0,
     );
 
     if (isEditing) {
       provider.updatePerson(person);
+    } else {
+      provider.addPerson(person);
     }
 
     Navigator.pop(context, person);
@@ -181,13 +232,110 @@ class _LoanEditPageState extends State<LoanEditPage> {
               ),
               const SizedBox(height: 16),
 
-              _buildModernTextField(
-                controller: _phoneCtrl,
-                label: 'Phone Number',
-                icon: Icons.phone_rounded,
-                keyboardType: TextInputType.phone,
-                validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
-                delay: 200,
+              TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutCubic,
+                tween: Tween(begin: 0.0, end: 1.0),
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(0, 30 * (1 - value)),
+                    child: Opacity(
+                      opacity: value,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 105,
+                            child: TextFormField(
+                              controller: _countryCodeCtrl,
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                LengthLimitingTextInputFormatter(3),
+                                FilteringTextInputFormatter.allow(RegExp(r'^\+?\d*')),
+                              ],
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                              decoration: InputDecoration(
+                                labelText: 'Code',
+                                filled: true,
+                                fillColor: Theme.of(context).colorScheme.surface,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: accent,
+                                    width: 2,
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                              ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'Required';
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: TextFormField(
+                                controller: _phoneCtrl,
+                                keyboardType: TextInputType.phone,
+                                validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
+                                decoration: InputDecoration(
+                                  labelText: 'Phone Number',
+                                  prefixIcon: const Icon(Icons.phone_rounded),
+                                  filled: true,
+                                  fillColor: Theme.of(context).colorScheme.surface,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: accent,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
@@ -266,7 +414,7 @@ class _LoanEditPageState extends State<LoanEditPage> {
                       date: _loanDate,
                       onTap: _pickLoanDate,
                       icon: Icons.calendar_today_rounded,
-                      delay: 450,
+                      delay: 460,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -276,7 +424,7 @@ class _LoanEditPageState extends State<LoanEditPage> {
                       date: _dueDate,
                       onTap: _pickDueDate,
                       icon: Icons.event_rounded,
-                      delay: 500,
+                      delay: 480,
                     ),
                   ),
                 ],
@@ -417,6 +565,8 @@ class _LoanEditPageState extends State<LoanEditPage> {
       },
     );
   }
+
+
 
   Widget _buildDateSelector({
     required String label,

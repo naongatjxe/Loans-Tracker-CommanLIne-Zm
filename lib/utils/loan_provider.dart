@@ -105,6 +105,25 @@ class LoanProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Update or add a contract
+  Future<void> updateContract(Contract contract) async {
+    final idx = _contracts.indexWhere((c) => c.id == contract.id);
+    if (idx != -1) {
+      _contracts[idx] = contract;
+    } else {
+      _contracts.add(contract);
+    }
+    await _saveData();
+    notifyListeners();
+  }
+
+  // Delete a contract by ID
+  Future<void> deleteContract(String id) async {
+    _contracts.removeWhere((c) => c.id == id);
+    await _saveData();
+    notifyListeners();
+  }
+
   // Get a person by ID
   Person? getPersonById(String id) {
     try {

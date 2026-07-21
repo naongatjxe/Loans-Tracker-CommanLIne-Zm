@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'pages/home_page.dart';
+import 'pages/borrower_history_page.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/monthly_report_page.dart';
 import 'pages/contract_page.dart';
@@ -22,12 +23,13 @@ class _MainTabsState extends State<MainTabs> {
 
   late final List<Widget> _pages = [
     HomePage(key: homeKey),
+    const BorrowerHistoryPage(),
     const DashboardPage(),
     const MonthlyReportPage(),
     const ContractPage(),
   ];
 
-  final List<String> _titles = ['Loans', 'Dashboard', 'Monthly', 'Contract'];
+  final List<String> _titles = ['Loans', 'Borrowers', 'Dashboard', 'Monthly', 'Contract'];
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +55,10 @@ class _MainTabsState extends State<MainTabs> {
                 label: 'Loans',
               ),
               NavigationDestination(
+                icon: Icon(Icons.people_alt_rounded),
+                label: 'Borrowers',
+              ),
+              NavigationDestination(
                 icon: Icon(Icons.dashboard_rounded),
                 label: 'Dashboard',
               ),
@@ -71,40 +77,22 @@ class _MainTabsState extends State<MainTabs> {
     } else {
       // Other pages without tabs
       return Scaffold(
-        appBar: AppBar(
-          title: Text(
-            _titles[_currentIndex],
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 18,
-              letterSpacing: 0.3,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          surfaceTintColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          toolbarHeight: 48,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.transparent,
-                    Theme.of(
-                      context,
-                    ).colorScheme.outline.withValues(alpha: 0.2),
-                    Colors.transparent,
-                  ],
+        appBar: (_currentIndex == 1 || _currentIndex == 4)
+            ? null
+            : AppBar(
+                title: Text(
+                  _titles[_currentIndex],
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 18,
+                    letterSpacing: 0.3,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
+                centerTitle: true,
+                elevation: 0,
+                backgroundColor: Colors.transparent,
               ),
-            ),
-          ),
-        ),
         body: _pages[_currentIndex],
         bottomNavigationBar: NavigationBar(
           selectedIndex: _currentIndex,
@@ -117,6 +105,10 @@ class _MainTabsState extends State<MainTabs> {
             NavigationDestination(
               icon: Icon(Icons.list_alt_rounded),
               label: 'Loans',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.people_alt_rounded),
+              label: 'Borrowers',
             ),
             NavigationDestination(
               icon: Icon(Icons.dashboard_rounded),

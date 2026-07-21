@@ -7,7 +7,6 @@ import 'utils/loan_provider.dart';
 import 'utils/notification_service.dart';
 import 'pages/contract_page.dart';
 import 'pages/welcome_onboarding_page.dart';
-import 'pages/pin_lock_page.dart';
 import 'main_tabs.dart';
 import 'theme/theme_controller.dart';
 
@@ -22,22 +21,11 @@ void main() async {
     print('Notification init failed: $e');
   }
 
-  // Check onboarding state and theme settings at startup
+  // Check onboarding state at startup
   bool isOnboarded = false;
-  int themeModeIndex = ThemeMode.dark.index;
-  int themeAccentValue = const Color(0xFF64B5F6).toARGB32();
-  bool pinLockEnabled = false;
-  String pinCode = '';
-  bool biometricsEnabled = false;
-
   try {
     final prefs = await SharedPreferences.getInstance();
     isOnboarded = prefs.getBool('has_completed_onboarding') ?? false;
-    themeModeIndex = prefs.getInt('theme_mode') ?? ThemeMode.dark.index;
-    themeAccentValue = prefs.getInt('theme_accent') ?? const Color(0xFF64B5F6).toARGB32();
-    pinLockEnabled = prefs.getBool('pin_lock_enabled') ?? false;
-    pinCode = prefs.getString('pin_code') ?? '';
-    biometricsEnabled = prefs.getBool('biometrics_enabled') ?? false;
   } catch (_) {}
 
   // Only set preferred orientations on mobile platforms
@@ -54,74 +42,29 @@ void main() async {
     );
   }
 
-  runApp(MyApp(
-    isOnboarded: isOnboarded,
-    themeModeIndex: themeModeIndex,
-    themeAccentValue: themeAccentValue,
-    pinLockEnabled: pinLockEnabled,
-    pinCode: pinCode,
-    biometricsEnabled: biometricsEnabled,
-  ));
+  runApp(MyApp(isOnboarded: isOnboarded));
 }
 
 class MyApp extends StatelessWidget {
   final bool isOnboarded;
-  final int themeModeIndex;
-  final int themeAccentValue;
-  final bool pinLockEnabled;
-  final String pinCode;
-  final bool biometricsEnabled;
+  const MyApp({super.key, required this.isOnboarded});
 
-  const MyApp({
-    super.key,
-    required this.isOnboarded,
-    required this.themeModeIndex,
-    required this.themeAccentValue,
-    required this.pinLockEnabled,
-    required this.pinCode,
-    required this.biometricsEnabled,
-  });
-
+  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LoanProvider()),
-        ChangeNotifierProvider(
-          create: (_) => ThemeController(
-            initialMode: ThemeMode.values[themeModeIndex],
-            initialAccent: Color(themeAccentValue),
-            initialPinLockEnabled: pinLockEnabled,
-            initialPinCode: pinCode,
-            initialBiometricsEnabled: biometricsEnabled,
-          ),
-        ),
+        ChangeNotifierProvider(create: (_) => ThemeController()),
       ],
       child: Consumer<ThemeController>(
         builder: (context, theme, child) {
-          final lightScheme = ColorScheme.fromSeed(seedColor: theme.accent);
-          final darkScheme = ColorScheme.fromSeed(
-            seedColor: theme.accent,
-            brightness: Brightness.dark,
-          );
-
-          // Route page based on PIN status
-          Widget initialPage;
-          if (theme.pinLockEnabled && theme.pinCode.isNotEmpty) {
-            initialPage = PinLockPage(
-              isSetupMode: false,
-              isOnboarded: isOnboarded,
-            );
-          } else {
-            initialPage = isOnboarded ? const MainTabs() : const WelcomeOnboardingPage();
-          }
-
           return MaterialApp(
-            title: 'Loan Tracker',
+            title: 'Loan Tracker Pro',
             debugShowCheckedModeBanner: false,
             themeMode: theme.mode,
             theme: ThemeData.light().copyWith(
-              colorScheme: lightScheme,
+              colorScheme: ColorScheme.fromSeed(seedColor: theme.accent),
               appBarTheme: AppBarTheme(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black87,
@@ -138,7 +81,7 @@ class MyApp extends StatelessWidget {
               ),
               bottomNavigationBarTheme: BottomNavigationBarThemeData(
                 backgroundColor: Colors.white,
-                selectedItemColor: lightScheme.primary,
+                selectedItemColor: theme.accent,
                 unselectedItemColor: Colors.grey.shade600,
                 elevation: 8,
                 type: BottomNavigationBarType.fixed,
@@ -153,7 +96,10 @@ class MyApp extends StatelessWidget {
               ),
             ),
             darkTheme: ThemeData.dark().copyWith(
-              colorScheme: darkScheme,
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: theme.accent,
+                brightness: Brightness.dark,
+              ),
               primaryColor: const Color(0xFF1E3A5F),
               scaffoldBackgroundColor: const Color(0xFF121212),
               appBarTheme: AppBarTheme(
@@ -172,7 +118,7 @@ class MyApp extends StatelessWidget {
               ),
               bottomNavigationBarTheme: BottomNavigationBarThemeData(
                 backgroundColor: const Color(0xFF1E1E1E),
-                selectedItemColor: darkScheme.primary,
+                selectedItemColor: theme.accent,
                 unselectedItemColor: Colors.grey.shade600,
                 elevation: 8,
                 type: BottomNavigationBarType.fixed,
@@ -186,7 +132,7 @@ class MyApp extends StatelessWidget {
                 ),
               ),
             ),
-            home: initialPage,
+            home: isOnboarded ? const MainTabs() : const WelcomeOnboardingPage(),
             routes: {'/contract': (context) => const ContractPage()},
           );
         },
