@@ -41,9 +41,9 @@ class _LoanEditPageState extends State<LoanEditPage> {
     _nrcCtrl = TextEditingController(text: p?.nrc ?? '');
 
     String initialPhone = p?.phone ?? '';
-    String parsedCode = '+26';
+    String parsedCode = '+260';
     if (initialPhone.startsWith('+')) {
-      final match = RegExp(r'^\+\d{1,2}').firstMatch(initialPhone);
+      final match = RegExp(r'^\+\d{1,3}').firstMatch(initialPhone);
       if (match != null) {
         parsedCode = match.group(0)!;
         initialPhone = initialPhone.substring(parsedCode.length).trim();
@@ -250,7 +250,7 @@ class _LoanEditPageState extends State<LoanEditPage> {
                               controller: _countryCodeCtrl,
                               keyboardType: TextInputType.phone,
                               inputFormatters: [
-                                LengthLimitingTextInputFormatter(3),
+                                LengthLimitingTextInputFormatter(4),
                                 FilteringTextInputFormatter.allow(RegExp(r'^\+?\d*')),
                               ],
                               style: TextStyle(

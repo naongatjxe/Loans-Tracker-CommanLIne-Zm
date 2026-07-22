@@ -25,7 +25,7 @@ class ContractPage extends StatefulWidget {
 class ContractPageState extends State<ContractPage> {
   final _formKey = GlobalKey<FormState>();
   final _companyNameController = TextEditingController();
-  final _companyPhoneCodeController = TextEditingController(text: '+26');
+  final _companyPhoneCodeController = TextEditingController(text: '+260');
   final _companyPhoneController = TextEditingController();
   final _companyAddressController = TextEditingController();
   final _termsController = TextEditingController();
@@ -41,7 +41,7 @@ class ContractPageState extends State<ContractPage> {
   void initState() {
     super.initState();
     _companyNameController.text = 'Your Company Name';
-    _companyPhoneCodeController.text = '+26';
+    _companyPhoneCodeController.text = '+260';
     _companyPhoneController.text = '';
     _companyAddressController.text = '';
     // Terms are intentionally minimal; contract text is generated for clarity in the PDF
@@ -58,7 +58,7 @@ class ContractPageState extends State<ContractPage> {
       if (args is Person) {
         _person = args;
         _existingContract = null;
-        _companyPhoneCodeController.text = '+26';
+        _companyPhoneCodeController.text = '+260';
         _companyPhoneController.text = '';
         _signatureDate = DateTime.now();
       } else if (args is Contract) {
@@ -67,9 +67,9 @@ class ContractPageState extends State<ContractPage> {
         _companyNameController.text = args.companyName;
         
         String initialPhone = args.lenderPhone;
-        String parsedCode = '+26';
+        String parsedCode = '+260';
         if (initialPhone.startsWith('+')) {
-          final match = RegExp(r'^\+\d{1,2}').firstMatch(initialPhone);
+          final match = RegExp(r'^\+\d{1,3}').firstMatch(initialPhone);
           if (match != null) {
             parsedCode = match.group(0)!;
             initialPhone = initialPhone.substring(parsedCode.length).trim();
@@ -872,7 +872,7 @@ class ContractPageState extends State<ContractPage> {
                             controller: _companyPhoneCodeController,
                             keyboardType: TextInputType.phone,
                             inputFormatters: [
-                              LengthLimitingTextInputFormatter(3),
+                              LengthLimitingTextInputFormatter(4),
                               FilteringTextInputFormatter.allow(RegExp(r'^\+?\d*')),
                             ],
                             style: TextStyle(

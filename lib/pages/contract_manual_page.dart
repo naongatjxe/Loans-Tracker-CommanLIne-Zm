@@ -18,7 +18,7 @@ class _ContractManualPageState extends State<ContractManualPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _nrcCtrl = TextEditingController();
-  final _countryCodeCtrl = TextEditingController(text: '+26');
+  final _countryCodeCtrl = TextEditingController(text: '+260');
   final _phoneCtrl = TextEditingController();
   final _workplaceCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
@@ -200,7 +200,7 @@ class _ContractManualPageState extends State<ContractManualPage> {
                               controller: _countryCodeCtrl,
                               keyboardType: TextInputType.phone,
                               inputFormatters: [
-                                LengthLimitingTextInputFormatter(3),
+                                LengthLimitingTextInputFormatter(4),
                                 FilteringTextInputFormatter.allow(RegExp(r'^\+?\d*')),
                               ],
                               style: TextStyle(
