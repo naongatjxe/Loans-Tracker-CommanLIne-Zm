@@ -1,7 +1,7 @@
 <en-US>
+- Full support for 3-digit country codes (+000 format) across all loan forms and lender details.
 - Added PDF Contract Generator tool to draw and sign contract agreements on-screen.
 - Added Re-borrow feature to quickly create new active loans from completed paid borrowers.
-- Standardized country code selection formatting (+00 format) across all phone inputs.
 - Implemented persistent signature date picker selection for contract sheets.
 - Hidden paid borrowers from the contract generation selection tab to keep workspace clean.
 </en-US>
